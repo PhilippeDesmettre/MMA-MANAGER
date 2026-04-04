@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
-using CodexTest.Models;
+using MmaManager.Models;
 
-namespace CodexTest.Data;
+namespace MmaManager.Data;
 
 public class MmaContext(DbContextOptions<MmaContext> options) : DbContext(options)
 {

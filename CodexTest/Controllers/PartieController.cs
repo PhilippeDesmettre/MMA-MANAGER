@@ -3,11 +3,11 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using CodexTest.Data;
-using CodexTest.Models;
-using CodexTest.Models.Dtos;
+using MmaManager.Data;
+using MmaManager.Models;
+using MmaManager.Models.Dtos;
 
-namespace CodexTest.Controllers;
+namespace MmaManager.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]

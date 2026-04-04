@@ -35,7 +35,7 @@ async function submit() {
 
     const data = await res.json()
     setSession(data.token, data.email)
-    router.push('/gyms')
+    router.push('/home')
 
   } catch {
     error.value = 'Impossible de contacter le serveur.'

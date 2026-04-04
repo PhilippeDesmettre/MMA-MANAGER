@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace CodexTest.Models;
+namespace MmaManager.Models;
 
 [Table("Background")]
 public class Background

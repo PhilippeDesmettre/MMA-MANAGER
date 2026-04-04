@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace CodexTest.Models.Dtos;
+namespace MmaManager.Models.Dtos;
 
 public record RegisterRequest(
     [Required, EmailAddress, MaxLength(256)] string Email,

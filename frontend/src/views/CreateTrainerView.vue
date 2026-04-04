@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
 
 const router = useRouter()
-const { authHeaders } = useAuth()
+const { authHeaders, clearSession } = useAuth()
 
 // ── Form state ────────────────────────────────────────────────
 const step = ref(1) // 1: identité | 2: background | 3: époque
@@ -83,6 +83,11 @@ async function submit() {
         epoque: epoque.value,
       })
     })
+    if (res.status === 401) {
+      clearSession()
+      router.push('/auth')
+      return
+    }
     if (!res.ok) {
       error.value = await res.text()
       return

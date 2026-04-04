@@ -4,11 +4,11 @@ using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using CodexTest.Data;
-using CodexTest.Models;
-using CodexTest.Models.Dtos;
+using MmaManager.Data;
+using MmaManager.Models;
+using MmaManager.Models.Dtos;
 
-namespace CodexTest.Controllers;
+namespace MmaManager.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]

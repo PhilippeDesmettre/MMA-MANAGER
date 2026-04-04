@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using CodexTest.Data;
+using MmaManager.Data;
 
-namespace CodexTest.Controllers;
+namespace MmaManager.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]

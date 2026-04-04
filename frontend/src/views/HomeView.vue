@@ -21,6 +21,7 @@ onMounted(async () => {
     const res = await fetch('http://localhost:5219/api/partie/current', {
       headers: authHeaders()
     })
+    if (res.status === 401) { clearSession(); router.push('/auth'); return }
     if (res.ok) partie.value = await res.json()
   } catch { /* pas de partie */ } finally {
     loading.value = false
