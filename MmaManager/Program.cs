@@ -119,6 +119,58 @@ using (var scope = app.Services.CreateScope())
         );
     """);
 
+    // Colonnes de suivi du tour dans Partie (ajoutées si absentes — table déjà existante)
+    db.Database.ExecuteSqlRaw("""
+        IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Partie') AND name = 'TourActuel')
+            ALTER TABLE Partie ADD TourActuel INT NOT NULL DEFAULT 1;
+    """);
+    db.Database.ExecuteSqlRaw("""
+        IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Partie') AND name = 'MoisActuel')
+            ALTER TABLE Partie ADD MoisActuel INT NOT NULL DEFAULT 1;
+    """);
+    db.Database.ExecuteSqlRaw("""
+        IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Partie') AND name = 'AnneeActuelle')
+            ALTER TABLE Partie ADD AnneeActuelle INT NOT NULL DEFAULT 1985;
+    """);
+
+    // Table EntrainementPlanifie
+    db.Database.ExecuteSqlRaw("""
+        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'EntrainementPlanifie' AND type = 'U')
+        CREATE TABLE EntrainementPlanifie (
+            EntrainementPlanifieID INT IDENTITY(1,1) PRIMARY KEY,
+            PartieID               INT NOT NULL REFERENCES Partie(PartieID) ON DELETE CASCADE,
+            CombattantID           INT NOT NULL REFERENCES Combattant(CombattantID),
+            TypeEntrainement       NVARCHAR(20) NOT NULL,
+            UNIQUE (PartieID, CombattantID)
+        );
+    """);
+
+    // Table HistoriqueEntrainement (pour future référence / détection sur-entraînement)
+    db.Database.ExecuteSqlRaw("""
+        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'HistoriqueEntrainement' AND type = 'U')
+        CREATE TABLE HistoriqueEntrainement (
+            HistoriqueEntrainementID INT IDENTITY(1,1) PRIMARY KEY,
+            PartieID                 INT NOT NULL REFERENCES Partie(PartieID) ON DELETE CASCADE,
+            CombattantID             INT NOT NULL REFERENCES Combattant(CombattantID),
+            TourNumero               INT NOT NULL,
+            TypeEntrainement         NVARCHAR(20) NOT NULL,
+            GainTotal                INT NOT NULL DEFAULT 0,
+            DateEnregistrement       DATETIME NOT NULL DEFAULT GETDATE()
+        );
+    """);
+
+    // Table CombattantPartie
+    db.Database.ExecuteSqlRaw("""
+        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'CombattantPartie' AND type = 'U')
+        CREATE TABLE CombattantPartie (
+            CombattantPartieID INT IDENTITY(1,1) PRIMARY KEY,
+            CombattantID       INT NOT NULL REFERENCES Combattant(CombattantID),
+            PartieID           INT NOT NULL REFERENCES Partie(PartieID) ON DELETE CASCADE,
+            DateRecrutement    DATETIME NOT NULL DEFAULT GETDATE(),
+            UNIQUE (CombattantID, PartieID)
+        );
+    """);
+
     // Seed des backgrounds (si la table est vide)
     db.Database.ExecuteSqlRaw("""
         IF NOT EXISTS (SELECT 1 FROM Background)
@@ -166,6 +218,7 @@ using (var scope = app.Services.CreateScope())
          'Tu connais le business comme ta poche. Négociations, contacts, réputation — ton réseau est ton arme secrète.',
          N'🤝', 0, 0, 0, 0, 0, 10, 15, 25, 10);
     """);
+
 }
 
 // ── Pipeline ──────────────────────────────────────────────────

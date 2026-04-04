@@ -29,5 +29,8 @@ public record PartieDto(
     string   Epoque,
     decimal  Argent,
     DateTime DateCreation,
+    int      TourActuel,
+    int      MoisActuel,
+    int      AnneeActuelle,
     EntraineurDto Entraineur
 );

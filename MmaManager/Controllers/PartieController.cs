@@ -53,10 +53,20 @@ public class PartieController(MmaContext db) : ControllerBase
             existing.EstActive = false;
 
         // Créer la nouvelle partie
+        var anneeDepart = req.Epoque switch
+        {
+            "GoldenAge" => 2000,
+            "Modern"    => 2013,
+            _           => 1985
+        };
+
         var partie = new Partie
         {
-            UserID = CurrentUserId,
-            Epoque = req.Epoque
+            UserID       = CurrentUserId,
+            Epoque       = req.Epoque,
+            TourActuel   = 1,
+            MoisActuel   = 1,
+            AnneeActuelle = anneeDepart
         };
         db.Parties.Add(partie);
         await db.SaveChangesAsync(); // Nécessaire pour obtenir le PartieID
@@ -119,6 +129,9 @@ public class PartieController(MmaContext db) : ControllerBase
             p.Epoque,
             p.Argent,
             p.DateCreation,
+            p.TourActuel,
+            p.MoisActuel,
+            p.AnneeActuelle,
             new EntraineurDto(
                 e.Prenom,
                 e.Nom,

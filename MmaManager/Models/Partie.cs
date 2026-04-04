@@ -22,6 +22,10 @@ public class Partie
     public DateTime DateDerniereConnexion { get; set; } = DateTime.UtcNow;
     public bool     EstActive             { get; set; } = true;
 
+    public int TourActuel   { get; set; } = 1;
+    public int MoisActuel   { get; set; } = 1;
+    public int AnneeActuelle { get; set; } = 1985;
+
     // Navigation
     public EntraineurJoueur? Entraineur { get; set; }
 }

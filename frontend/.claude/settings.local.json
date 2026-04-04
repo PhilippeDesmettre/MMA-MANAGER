@@ -4,6 +4,11 @@
       "Bash(dotnet build:*)",
       "Bash(dotnet add:*)",
       "Bash(npm install:*)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\desme\\source\\repos\\MmaManager\\MmaManager\\Models",
+      "c:\\Users\\desme\\source\\repos\\MmaManager\\MmaManager\\Data",
+      "c:\\Users\\desme\\source\\repos\\MmaManager\\MmaManager"
     ]
   }
 }
