@@ -1,5 +1,22 @@
 namespace MmaManager.Models.Dtos;
 
+public record FinancesCombattantDto(
+    int     CombattantID,
+    string  Prenom,
+    string  NomFamille,
+    decimal Salaire
+);
+
+public record FinancesDto(
+    decimal Solde,
+    decimal Loyer,
+    decimal SalairesTotaux,
+    decimal StaffTotal,
+    decimal DepensesTotales,
+    decimal SoldeApres,
+    IReadOnlyList<FinancesCombattantDto> Combattants
+);
+
 public record CombattantListDto(
     int     CombattantID,
     string  Prenom,
@@ -32,5 +49,9 @@ public record CombattantDetailDto(
     int     CompMental,
     int     NoteGlobale,
     decimal PrixAchat,
-    decimal SalaireMensuel
+    decimal SalaireMensuel,
+    // Bilan sportif
+    int     Victoires,
+    int     Defaites,
+    int     Nuls
 );

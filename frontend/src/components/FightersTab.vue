@@ -16,9 +16,13 @@ const loading      = ref(false)
 const recruiting   = ref(null)   // ID du combattant en cours de recrutement
 
 // Dialog
-const dialog       = ref(false)
+const dialog        = ref(false)
 const dialogFighter = ref(null)
-const dialogMode   = ref('view') // 'view' | 'recruit'
+const dialogMode    = ref('view') // 'view' | 'recruit'
+
+// Snackbar erreur
+const snackbar      = ref(false)
+const snackbarMsg   = ref('')
 
 // Filtre catégorie dans recrutement
 const filterCat    = ref('Toutes')
@@ -81,16 +85,22 @@ async function recruter(id) {
       headers: props.authHeaders()
     })
     if (res.ok) {
-      // Déplace le combattant de disponibles → écurie
       const idx = disponibles.value.findIndex(f => f.combattantID === id)
       if (idx !== -1) disponibles.value.splice(idx, 1)
       await loadEcurie()
-      // Ferme le dialog si on venait de là
       if (dialog.value && dialogFighter.value?.combattantID === id) dialog.value = false
+    } else {
+      const msg = await res.text()
+      snackbarMsg.value = msg || 'Erreur lors du recrutement.'
+      snackbar.value = true
     }
   } finally {
     recruiting.value = null
   }
+}
+
+function formatPrix(val) {
+  return Number(val ?? 0).toLocaleString('fr-FR') + ' €'
 }
 
 function openDialog(fighter, mode = 'view') {
@@ -267,6 +277,9 @@ onMounted(() => {
           {{ f.noteGlobale }}
         </span>
 
+        <!-- Prix -->
+        <span class="recruit-prix">💰 {{ formatPrix(f.prixAchat) }}</span>
+
         <!-- Actions -->
         <div class="recruit-actions">
           <v-btn
@@ -364,6 +377,20 @@ onMounted(() => {
 
       <v-divider style="border-color:rgba(99,102,241,.2)" />
 
+      <!-- Salaire mensuel + prix (mode recrutement) -->
+      <div v-if="dialogMode === 'recruit'" class="dialog-cost-block">
+        <div class="dialog-cost-row">
+          <span class="dialog-cost-label">Coût de recrutement</span>
+          <span class="dialog-cost-val">💰 {{ formatPrix(dialogFighter.prixAchat) }}</span>
+        </div>
+        <div class="dialog-cost-row">
+          <span class="dialog-cost-label">Salaire mensuel</span>
+          <span class="dialog-cost-sal">📅 {{ formatPrix(dialogFighter.salaireMensuel) }}/mois</span>
+        </div>
+      </div>
+
+      <v-divider style="border-color:rgba(99,102,241,.2)" />
+
       <!-- Actions -->
       <v-card-actions class="dialog-actions">
         <v-btn variant="text" rounded="pill" @click="dialog = false">Fermer</v-btn>
@@ -376,11 +403,19 @@ onMounted(() => {
           :loading="recruiting === dialogFighter.combattantID"
           @click="recruter(dialogFighter.combattantID)"
         >
-          👊 Recruter
+          👊 Recruter — {{ formatPrix(dialogFighter.prixAchat) }}
         </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
+
+  <!-- Snackbar erreur recrutement -->
+  <v-snackbar v-model="snackbar" color="error" timeout="4000" location="top">
+    {{ snackbarMsg }}
+    <template #actions>
+      <v-btn variant="text" @click="snackbar = false">Fermer</v-btn>
+    </template>
+  </v-snackbar>
 
 </template>
 
@@ -509,7 +544,7 @@ onMounted(() => {
 .recruit-list { display: flex; flex-direction: column; gap: 8px; }
 .recruit-row {
   display: grid;
-  grid-template-columns: 36px 1fr auto auto auto;
+  grid-template-columns: 36px 1fr auto auto auto auto;
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
@@ -532,6 +567,12 @@ onMounted(() => {
   white-space: nowrap;
 }
 .recruit-note { font-size: 1rem; font-weight: 800; min-width: 28px; text-align: center; }
+.recruit-prix {
+  font-size: .78rem;
+  font-weight: 700;
+  color: #f59e0b;
+  white-space: nowrap;
+}
 .recruit-actions { display: flex; gap: 6px; align-items: center; }
 .recruit-btn-info { color: #94a3b8 !important; font-size: .8rem !important; }
 .recruit-btn-recruit {
@@ -588,4 +629,24 @@ onMounted(() => {
 .dialog-stat-val { font-size: .82rem; font-weight: 700; text-align: right; }
 
 .dialog-actions { padding: 12px 20px 16px; }
+
+/* Bloc coûts dans dialog recrutement */
+.dialog-cost-block {
+  margin: 0 20px 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(245,158,11,.06);
+  border: 1px solid rgba(245,158,11,.2);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dialog-cost-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.dialog-cost-label { font-size: .8rem; color: #94a3b8; }
+.dialog-cost-val { font-size: .9rem; font-weight: 700; color: #f59e0b; }
+.dialog-cost-sal { font-size: .85rem; font-weight: 600; color: #94a3b8; }
 </style>

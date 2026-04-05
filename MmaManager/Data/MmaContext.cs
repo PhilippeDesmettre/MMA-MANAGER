@@ -14,9 +14,16 @@ public class MmaContext(DbContextOptions<MmaContext> options) : DbContext(option
     public DbSet<Background>       Backgrounds       { get; set; }
     public DbSet<Partie>           Parties           { get; set; }
     public DbSet<EntraineurJoueur> EntraineursJoueur { get; set; }
-    public DbSet<Combattant>           Combattants           { get; set; }
-    public DbSet<CombattantPartie>     CombattantsPartie     { get; set; }
+    public DbSet<Combattant>           Combattants            { get; set; }
+    public DbSet<CombattantPartie>     CombattantsPartie      { get; set; }
     public DbSet<EntrainementPlanifie> EntrainementsPlanifies { get; set; }
+    public DbSet<Agent>               Agents                  { get; set; }
+    public DbSet<SurEntrainement>     SurEntrainements        { get; set; }
+    public DbSet<CombatOrganisation>    CombatOrganisations     { get; set; }
+    public DbSet<CombatPlanifie>        CombatsPlanifies        { get; set; }
+    public DbSet<ResultatCombatPartie>  ResultatsCombat         { get; set; }
+    public DbSet<StaffDisponible>       StaffDisponibles        { get; set; }
+    public DbSet<StaffPartie>           StaffParties            { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -62,10 +69,98 @@ public class MmaContext(DbContextOptions<MmaContext> options) : DbContext(option
             .HasForeignKey(ep => ep.CombattantID)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // EntrainementPlanifie -> EntraineurJoueur
+        modelBuilder.Entity<EntrainementPlanifie>()
+            .HasOne(ep => ep.EntraineurJoueur)
+            .WithMany()
+            .HasForeignKey(ep => ep.EntraineurJoueurID)
+            .OnDelete(DeleteBehavior.SetNull)
+            .IsRequired(false);
+
         // EntrainementPlanifie : unicité (PartieID, CombattantID)
         modelBuilder.Entity<EntrainementPlanifie>()
             .HasIndex(ep => new { ep.PartieID, ep.CombattantID })
             .IsUnique();
+
+        // SurEntrainement -> Combattant
+        modelBuilder.Entity<SurEntrainement>()
+            .HasOne(s => s.Combattant)
+            .WithMany()
+            .HasForeignKey(s => s.CombattantID)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // CombatOrganisation -> Pays
+        modelBuilder.Entity<CombatOrganisation>()
+            .HasOne(o => o.PaysOrigine)
+            .WithMany()
+            .HasForeignKey(o => o.PaysOrigineID)
+            .OnDelete(DeleteBehavior.SetNull)
+            .IsRequired(false);
+
+        // CombatPlanifie -> Combattant (le combattant de l'écurie)
+        modelBuilder.Entity<CombatPlanifie>()
+            .HasOne(cp => cp.Combattant)
+            .WithMany()
+            .HasForeignKey(cp => cp.CombattantID)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // CombatPlanifie -> Adversaire
+        modelBuilder.Entity<CombatPlanifie>()
+            .HasOne(cp => cp.Adversaire)
+            .WithMany()
+            .HasForeignKey(cp => cp.AdversaireID)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // CombatPlanifie -> Agent
+        modelBuilder.Entity<CombatPlanifie>()
+            .HasOne(cp => cp.Agent)
+            .WithMany()
+            .HasForeignKey(cp => cp.AgentID)
+            .OnDelete(DeleteBehavior.SetNull)
+            .IsRequired(false);
+
+        // CombatPlanifie -> Organisation
+        modelBuilder.Entity<CombatPlanifie>()
+            .HasOne(cp => cp.Organisation)
+            .WithMany()
+            .HasForeignKey(cp => cp.OrganisationID)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // ResultatCombatPartie -> Combattant (notre combattant)
+        modelBuilder.Entity<ResultatCombatPartie>()
+            .HasOne(r => r.Combattant)
+            .WithMany()
+            .HasForeignKey(r => r.CombattantID)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // ResultatCombatPartie -> Adversaire
+        modelBuilder.Entity<ResultatCombatPartie>()
+            .HasOne(r => r.Adversaire)
+            .WithMany()
+            .HasForeignKey(r => r.AdversaireID)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // StaffPartie -> Partie
+        modelBuilder.Entity<StaffPartie>()
+            .HasOne(sp => sp.Partie)
+            .WithMany()
+            .HasForeignKey(sp => sp.PartieID)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // StaffPartie -> StaffDisponible
+        modelBuilder.Entity<StaffPartie>()
+            .HasOne(sp => sp.StaffDisponible)
+            .WithMany()
+            .HasForeignKey(sp => sp.StaffDisponibleID)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // EntrainementPlanifie -> StaffPartie (NoAction pour éviter cycle cascade SQL Server)
+        modelBuilder.Entity<EntrainementPlanifie>()
+            .HasOne(ep => ep.StaffPartie)
+            .WithMany()
+            .HasForeignKey(ep => ep.StaffPartieID)
+            .OnDelete(DeleteBehavior.ClientSetNull)
+            .IsRequired(false);
 
         // Gym n'a pas de navigation vers Pays, EF ne crée pas de relation automatique
     }

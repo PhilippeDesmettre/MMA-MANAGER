@@ -25,7 +25,7 @@ public class CombattantsController(MmaContext db) : ControllerBase
                ?? User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
     [HttpGet("disponibles")]
-    public async Task<ActionResult<IEnumerable<CombattantListDto>>> GetDisponibles()
+    public async Task<ActionResult<IEnumerable<CombattantDetailDto>>> GetDisponibles()
     {
         var partie = await PartieActive();
         if (partie is null) return NotFound("Aucune partie active.");
@@ -44,7 +44,7 @@ public class CombattantsController(MmaContext db) : ControllerBase
             .ThenBy(c => c.Prenom)
             .ToListAsync();
 
-        return Ok(combattants.Select(c => ToListDto(c, references)));
+        return Ok(combattants.Select(c => ToDetailDto(c, references, partie.AnneeActuelle, partie.MoisActuel)));
     }
 
     [HttpGet("ecurie")]
@@ -64,26 +64,30 @@ public class CombattantsController(MmaContext db) : ControllerBase
             .Select(cp => cp.Combattant!)
             .ToListAsync();
 
-        return Ok(combattants.Select(c => ToDetailDto(c, references)));
+        return Ok(combattants.Select(c => ToDetailDto(c, references, partie.AnneeActuelle, partie.MoisActuel)));
     }
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<CombattantDetailDto>> GetById(int id)
     {
+        var partie = await PartieActive();
+        var references = await LoadReferenceData();
+
         var combattant = await db.Combattants
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.CombattantID == id);
 
         if (combattant is null) return NotFound();
 
-        var references = await LoadReferenceData();
-        return Ok(ToDetailDto(combattant, references));
+        return Ok(ToDetailDto(combattant, references, partie?.AnneeActuelle ?? DateTime.Today.Year, partie?.MoisActuel ?? DateTime.Today.Month));
     }
 
     [HttpPost("{id:int}/recruter")]
     public async Task<IActionResult> Recruter(int id)
     {
-        var partie = await PartieActive();
+        var partie = await db.Parties
+            .Where(p => p.UserID == CurrentUserId && p.EstActive)
+            .FirstOrDefaultAsync();
         if (partie is null) return NotFound("Aucune partie active.");
 
         var combattant = await db.Combattants.FindAsync(id);
@@ -92,12 +96,19 @@ public class CombattantsController(MmaContext db) : ControllerBase
         var dejaRecrute = await db.CombattantsPartie
             .AnyAsync(cp => cp.PartieID == partie.PartieID && cp.CombattantID == id);
 
-        if (dejaRecrute) return BadRequest("Ce combattant est deja dans ton ecurie.");
+        if (dejaRecrute) return BadRequest("Ce combattant est déjà dans ton écurie.");
+
+        // Vérifier les fonds suffisants
+        var cout = (decimal)combattant.Valeur;
+        if (partie.Argent < cout)
+            return BadRequest($"Fonds insuffisants. Coût : {cout:N0} €, Solde : {partie.Argent:N0} €");
+
+        partie.Argent -= cout;
 
         db.CombattantsPartie.Add(new CombattantPartie
         {
-            CombattantID = id,
-            PartieID = partie.PartieID,
+            CombattantID    = id,
+            PartieID        = partie.PartieID,
             DateRecrutement = DateTime.UtcNow
         });
         await db.SaveChangesAsync();
@@ -135,15 +146,11 @@ public class CombattantsController(MmaContext db) : ControllerBase
             categoriesF);
     }
 
-    private static int CalculerAge(DateTime dateNaissance)
+    private static int CalculerAge(DateTime dateNaissance, int anneeJeu, int moisJeu)
     {
-        var today = DateTime.Today;
-        var age = today.Year - dateNaissance.Year;
-
-        if (dateNaissance.Date > today.AddYears(-age))
-            age--;
-
-        return age;
+        var age = anneeJeu - dateNaissance.Year;
+        if (dateNaissance.Month > moisJeu) age--;
+        return Math.Max(0, age);
     }
 
     private static int Moyenne(params int[] valeurs) =>
@@ -190,26 +197,7 @@ public class CombattantsController(MmaContext db) : ControllerBase
 
     private static int NoteGlobale(Combattant c) => c.Overall;
 
-    private static CombattantListDto ToListDto(Combattant c, CombattantReferenceData references)
-    {
-        var pays = GetPays(c, references);
-
-        return new CombattantListDto(
-            c.CombattantID,
-            c.Prenom,
-            c.NomFamille,
-            pays?.Nom ?? "-",
-            pays?.Code ?? "-",
-            CalculerAge(c.DateNaissance),
-            GetCategoriePoids(c, references),
-            GetStylePrincipal(c, references),
-            NoteGlobale(c),
-            c.Valeur,
-            c.Salaire
-        );
-    }
-
-    private static CombattantDetailDto ToDetailDto(Combattant c, CombattantReferenceData references)
+    private static CombattantDetailDto ToDetailDto(Combattant c, CombattantReferenceData references, int anneeJeu, int moisJeu)
     {
         var pays = GetPays(c, references);
 
@@ -219,7 +207,7 @@ public class CombattantsController(MmaContext db) : ControllerBase
             c.NomFamille,
             pays?.Nom ?? "-",
             pays?.Code ?? "-",
-            CalculerAge(c.DateNaissance),
+            CalculerAge(c.DateNaissance, anneeJeu, moisJeu),
             GetCategoriePoids(c, references),
             GetStylePrincipal(c, references),
             GetBiographie(c),
@@ -231,7 +219,10 @@ public class CombattantsController(MmaContext db) : ControllerBase
             GetCompMental(c),
             NoteGlobale(c),
             c.Valeur,
-            c.Salaire
+            c.Salaire,
+            c.Victoires,
+            c.Defaites,
+            c.Nuls
         );
     }
 }

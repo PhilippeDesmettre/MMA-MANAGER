@@ -62,10 +62,11 @@ public class PartieController(MmaContext db) : ControllerBase
 
         var partie = new Partie
         {
-            UserID       = CurrentUserId,
-            Epoque       = req.Epoque,
-            TourActuel   = 1,
-            MoisActuel   = 1,
+            UserID        = CurrentUserId,
+            Epoque        = req.Epoque,
+            Argent        = 50_000m,    // budget de départ (beta)
+            TourActuel    = 1,
+            MoisActuel    = 1,
             AnneeActuelle = anneeDepart
         };
         db.Parties.Add(partie);
@@ -93,6 +94,25 @@ public class PartieController(MmaContext db) : ControllerBase
             CompMotivation   = Stat(background.BonusMotivation),
         };
         db.EntraineursJoueur.Add(entraineur);
+
+        // Créer l'agent joueur (le joueur est son propre agent par défaut)
+        // BonusNegociation du background s'applique à CompNegociation
+        var agent = new MmaManager.Models.Agent
+        {
+            PartieID       = partie.PartieID,
+            EstJoueur      = true,
+            Prenom         = req.Prenom,
+            Nom            = req.Nom,
+            CompNegociation = Math.Min(99, 30 + background.BonusNegociation),
+            CompContact    = 30,
+            CompReseau     = 30,
+            CompReputation = 30,
+            CompInfluence  = 30,
+            CompMarketing  = 30,
+            CompJuridique  = 30,
+        };
+        db.Agents.Add(agent);
+
         await db.SaveChangesAsync();
 
         // Recharger avec navigations
@@ -100,6 +120,51 @@ public class PartieController(MmaContext db) : ControllerBase
         entraineur.Background = background;
 
         return CreatedAtAction(nameof(GetCurrent), await ToDto(partie));
+    }
+
+    // GET /api/partie/finances
+    [HttpGet("finances")]
+    public async Task<ActionResult<FinancesDto>> GetFinances()
+    {
+        var partie = await db.Parties
+            .Where(p => p.UserID == CurrentUserId && p.EstActive)
+            .FirstOrDefaultAsync();
+
+        if (partie is null) return NotFound();
+
+        var ecurie = await db.CombattantsPartie
+            .Where(cp => cp.PartieID == partie.PartieID)
+            .Include(cp => cp.Combattant)
+            .AsNoTracking()
+            .ToListAsync();
+
+        var combattantsDto = ecurie.Select(cp => new FinancesCombattantDto(
+            cp.CombattantID,
+            cp.Combattant!.Prenom,
+            cp.Combattant!.NomFamille,
+            cp.Combattant!.Salaire
+        )).ToList();
+
+        var staffEmbauches = await db.StaffParties
+            .Where(sp => sp.PartieID == partie.PartieID)
+            .Include(sp => sp.StaffDisponible)
+            .AsNoTracking()
+            .ToListAsync();
+
+        decimal salairesTotaux = combattantsDto.Sum(c => c.Salaire);
+        decimal loyer          = 1m;
+        decimal staffTotal     = staffEmbauches.Sum(sp => sp.StaffDisponible!.SalaireMensuel);
+        decimal depenses       = salairesTotaux + loyer + staffTotal;
+
+        return Ok(new FinancesDto(
+            partie.Argent,
+            loyer,
+            salairesTotaux,
+            staffTotal,
+            depenses,
+            partie.Argent - depenses,
+            combattantsDto
+        ));
     }
 
     // ── Helper ────────────────────────────────────────────────

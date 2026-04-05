@@ -16,6 +16,14 @@ public class EntrainementPlanifie
     [MaxLength(20)]
     public string TypeEntrainement { get; set; } = string.Empty;
 
+    /// <summary>Coach joueur assigné — null si staff embauché utilisé</summary>
+    public int? EntraineurJoueurID { get; set; }
+
+    /// <summary>Staff embauché assigné — null si entraîneur joueur utilisé</summary>
+    public int? StaffPartieID { get; set; }
+
     // Navigation
-    public Combattant? Combattant { get; set; }
+    public Combattant?       Combattant       { get; set; }
+    public EntraineurJoueur? EntraineurJoueur { get; set; }
+    public StaffPartie?      StaffPartie      { get; set; }
 }

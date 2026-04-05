@@ -16,7 +16,7 @@ public class Partie
     public string Epoque { get; set; } = string.Empty;
 
     [Column(TypeName = "decimal(18,2)")]
-    public decimal Argent { get; set; } = 1000m;
+    public decimal Argent { get; set; } = 50_000m;
 
     public DateTime DateCreation          { get; set; } = DateTime.UtcNow;
     public DateTime DateDerniereConnexion { get; set; } = DateTime.UtcNow;

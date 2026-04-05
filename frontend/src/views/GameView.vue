@@ -2,8 +2,11 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
-import FightersTab from '../components/FightersTab.vue'
-import TrainingTab from '../components/TrainingTab.vue'
+import FightersTab      from '../components/FightersTab.vue'
+import TrainingTab      from '../components/TrainingTab.vue'
+import CombatPlanifieTab from '../components/CombatPlanifieTab.vue'
+import FinancesTab      from '../components/FinancesTab.vue'
+import StaffTab        from '../components/StaffTab.vue'
 
 const router = useRouter()
 const { email, authHeaders, clearSession } = useAuth()
@@ -14,9 +17,12 @@ const tab           = ref('dashboard')
 const ecurieCount   = ref(0)
 
 // Tour
-const avancement       = ref(false)
-const tourResultat     = ref(null)  // TourResultatDto | null
-const dialogResultat   = ref(false)
+const avancement          = ref(false)
+const tourResultat        = ref(null)   // TourResultatDto | null
+const dialogResultat      = ref(false)
+const dialogTransition    = ref(false)  // dialog changement d'ère
+const dialogCombats       = ref(false)  // dialog résultats combats
+const dialogGameOver      = ref(false)  // dialog game over
 
 const EPOQUES = {
   NoRules:   { label: 'Underground Era', years: '1985 – 1999', icon: '🔥', color: '#ef4444' },
@@ -25,11 +31,13 @@ const EPOQUES = {
 }
 
 const TABS = [
-  { key: 'dashboard',    icon: '🏠', label: 'Accueil',      available: true  },
-  { key: 'fighters',     icon: '👊', label: 'Combattants',  available: true  },
-  { key: 'training',     icon: '🏋️', label: 'Entraînement', available: true  },
-  { key: 'fights',       icon: '📋', label: 'Combats',      available: false },
-  { key: 'rankings',     icon: '📊', label: 'Classements',  available: false },
+  { key: 'dashboard',    icon: '🏠', label: 'Accueil',          available: true  },
+  { key: 'fighters',     icon: '👊', label: 'Combattants',      available: true  },
+  { key: 'training',     icon: '🏋️', label: 'Entraînement',     available: true  },
+  { key: 'fights',       icon: '📋', label: 'Planifier combat', available: true  },
+  { key: 'finances',     icon: '💰', label: 'Finances',         available: true  },
+  { key: 'staff',        icon: '👥', label: 'Staff',            available: true  },
+  { key: 'rankings',     icon: '📊', label: 'Classements',      available: false },
 ]
 
 const epoqueInfo = computed(() =>
@@ -96,19 +104,79 @@ async function avancerTour() {
       headers: authHeaders(),
     })
     if (res.ok) {
-      tourResultat.value   = await res.json()
-      dialogResultat.value = true
-      // Recharger les données de la partie (nouveau mois/tour)
+      tourResultat.value = await res.json()
       await chargerPartie()
+      // Ordre : 1) combats  2) transition d'ère  3) entraînements  4) game over
+      if (tourResultat.value.combatsResultats?.length > 0) {
+        dialogCombats.value = true
+      } else if (tourResultat.value.transitionEpoque) {
+        dialogTransition.value = true
+      } else if (tourResultat.value.resultats?.length > 0) {
+        dialogResultat.value = true
+      } else if (tourResultat.value.estGameOver) {
+        dialogGameOver.value = true
+      }
     }
   } finally {
     avancement.value = false
   }
 }
 
+function fermerCombats() {
+  dialogCombats.value = false
+  if (tourResultat.value?.transitionEpoque) {
+    dialogTransition.value = true
+  } else if (tourResultat.value?.resultats?.length > 0) {
+    dialogResultat.value = true
+  } else if (tourResultat.value?.estGameOver) {
+    dialogGameOver.value = true
+  } else {
+    tourResultat.value = null
+  }
+}
+
+function fermerTransition() {
+  dialogTransition.value = false
+  if (tourResultat.value?.resultats?.length > 0) {
+    dialogResultat.value = true
+  } else if (tourResultat.value?.estGameOver) {
+    dialogGameOver.value = true
+  } else {
+    tourResultat.value = null
+  }
+}
+
 function fermerResultat() {
   dialogResultat.value = false
+  if (tourResultat.value?.estGameOver) {
+    dialogGameOver.value = true
+  } else {
+    tourResultat.value = null
+  }
+}
+
+function allerAccueil() {
+  dialogGameOver.value = false
   tourResultat.value   = null
+  router.push('/home')
+}
+
+function combatResultIcon(c) {
+  if (c.estNul)      return '🟡'
+  if (c.estVictoire) return '🟢'
+  return '🔴'
+}
+
+function combatResultLabel(c) {
+  if (c.estNul)      return 'NUL'
+  if (c.estVictoire) return 'VICTOIRE'
+  return 'DÉFAITE'
+}
+
+function combatResultColor(c) {
+  if (c.estNul)      return '#f59e0b'
+  if (c.estVictoire) return '#22c55e'
+  return '#ef4444'
 }
 
 function logout() {
@@ -121,6 +189,9 @@ const MOIS_FR = [
   'Juillet','Août','Septembre','Octobre','Novembre','Décembre',
 ]
 function moisLabel(n) { return MOIS_FR[(n ?? 1) - 1] }
+function formatMoney(val) {
+  return Number(val ?? 0).toLocaleString('fr-FR')
+}
 </script>
 
 <template>
@@ -294,6 +365,24 @@ function moisLabel(n) { return MOIS_FR[(n ?? 1) - 1] }
           />
         </div>
 
+        <!-- Tab Planifier combat -->
+        <div v-else-if="tab === 'fights' && partie">
+          <CombatPlanifieTab
+            :auth-headers="authHeaders"
+            :partie="partie"
+          />
+        </div>
+
+        <!-- Tab Finances -->
+        <div v-else-if="tab === 'finances'">
+          <FinancesTab :auth-headers="authHeaders" />
+        </div>
+
+        <!-- Tab Staff -->
+        <div v-else-if="tab === 'staff'">
+          <StaffTab :auth-headers="authHeaders" />
+        </div>
+
         <!-- Tabs "bientôt disponible" -->
         <div v-else-if="tab !== 'dashboard'" class="coming-soon">
           <div class="coming-icon">
@@ -315,6 +404,93 @@ function moisLabel(n) { return MOIS_FR[(n ?? 1) - 1] }
       </div>
 
     </v-main>
+
+    <!-- ── Dialog résultats combats ────────────────────────────── -->
+    <v-dialog v-model="dialogCombats" max-width="620" persistent>
+      <v-card class="resultat-dialog" rounded="xl" elevation="24">
+        <v-card-title class="resultat-title">
+          <span>🥊 Combats — Tour {{ tourResultat?.tourJoue }}</span>
+          <span class="resultat-date">{{ moisLabel(tourResultat?.nouveauMois) }} {{ tourResultat?.nouvelleAnnee }}</span>
+        </v-card-title>
+
+        <v-card-text class="resultat-body">
+          <div
+            v-for="c in tourResultat?.combatsResultats"
+            :key="c.combattantID"
+            class="combat-resultat"
+            :style="{ borderColor: combatResultColor(c) + '44' }"
+          >
+            <!-- Bandeau résultat -->
+            <div class="combat-banner" :style="{ background: combatResultColor(c) + '22' }">
+              <span class="combat-banner-icon">{{ combatResultIcon(c) }}</span>
+              <span class="combat-banner-label" :style="{ color: combatResultColor(c) }">
+                {{ combatResultLabel(c) }}
+              </span>
+              <span class="combat-org">{{ c.organisation }}</span>
+            </div>
+            <!-- Matchup -->
+            <div class="combat-matchup">
+              <span class="combat-fighter">{{ c.combattantNom }}</span>
+              <span class="combat-vs">VS</span>
+              <span class="combat-fighter">{{ c.adversaireNom }}</span>
+            </div>
+            <!-- Détail -->
+            <div class="combat-details">
+              <span class="combat-method">{{ c.methodeVictoire }}</span>
+              <span class="combat-detail-text">{{ c.details }}</span>
+            </div>
+          </div>
+
+          <!-- Résumé financier -->
+          <div class="finance-summary">
+            <div class="finance-title">💰 Bilan financier du mois</div>
+            <div class="finance-row">
+              <span>Dépenses (salaires + loyer)</span>
+              <span class="finance-neg">−{{ formatMoney(tourResultat?.depensesTotales) }} €</span>
+            </div>
+            <div class="finance-row finance-balance">
+              <span>Nouveau solde</span>
+              <span>{{ formatMoney(tourResultat?.soldeApres) }} €</span>
+            </div>
+          </div>
+        </v-card-text>
+
+        <v-card-actions class="resultat-actions">
+          <v-btn variant="flat" color="indigo" rounded="pill" @click="fermerCombats">
+            Continuer
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- ── Dialog transition d'ère ─────────────────────────────── -->
+    <v-dialog v-model="dialogTransition" max-width="560" persistent>
+      <v-card class="transition-dialog" rounded="xl" elevation="24">
+        <div class="transition-header">
+          <span class="transition-big-icon">
+            {{ tourResultat?.nouvelleEpoque === 'GoldenAge' ? '🏆' : '🧠' }}
+          </span>
+          <div class="transition-label">Nouvelle ère</div>
+          <div class="transition-era">
+            {{ tourResultat?.nouvelleEpoque === 'GoldenAge' ? 'Golden Age' : 'Modern MMA' }}
+          </div>
+          <div class="transition-year">{{ tourResultat?.nouvelleAnnee }}</div>
+        </div>
+        <v-card-text class="transition-body">
+          <p
+            v-for="(line, i) in (tourResultat?.messageTransition ?? '').split('\n').filter(Boolean)"
+            :key="i"
+            class="transition-line"
+            :class="{ 'transition-line-main': i === 0 }"
+          >{{ line }}</p>
+        </v-card-text>
+        <v-card-actions style="justify-content:center;padding-bottom:20px">
+          <v-btn variant="flat" color="indigo" rounded="pill" size="large" @click="fermerTransition">
+            Entrer dans la nouvelle ère
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 
     <!-- ── Dialog résultats du tour ──────────────────────────── -->
     <v-dialog v-model="dialogResultat" max-width="600" persistent>
@@ -351,6 +527,19 @@ function moisLabel(n) { return MOIS_FR[(n ?? 1) - 1] }
           </div>
         </v-card-text>
 
+        <!-- Résumé financier (affiché ici seulement s'il n'y a pas eu de combats) -->
+        <div v-if="!tourResultat?.combatsResultats?.length" class="finance-summary finance-summary--training">
+          <div class="finance-title">💰 Bilan financier</div>
+          <div class="finance-row">
+            <span>Dépenses (salaires + loyer)</span>
+            <span class="finance-neg">−{{ formatMoney(tourResultat?.depensesTotales) }} €</span>
+          </div>
+          <div class="finance-row finance-balance">
+            <span>Nouveau solde</span>
+            <span>{{ formatMoney(tourResultat?.soldeApres) }} €</span>
+          </div>
+        </div>
+
         <v-card-actions class="resultat-actions">
           <v-btn
             variant="flat"
@@ -359,6 +548,29 @@ function moisLabel(n) { return MOIS_FR[(n ?? 1) - 1] }
             @click="fermerResultat"
           >
             Continuer
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- ── Dialog Game Over ──────────────────────────────────── -->
+    <v-dialog v-model="dialogGameOver" max-width="480" persistent>
+      <v-card class="gameover-dialog" rounded="xl" elevation="24">
+        <div class="gameover-header">
+          <div class="gameover-icon">💀</div>
+          <div class="gameover-title">GAME OVER</div>
+          <div class="gameover-sub">Ton écurie est en faillite</div>
+        </div>
+        <v-card-text class="gameover-body">
+          <p>Tu n'as plus assez d'argent pour payer tes charges mensuelles.</p>
+          <p>Les combattants ont quitté l'écurie et les portes de la salle sont fermées.</p>
+          <div class="gameover-solde">
+            Solde final : <strong style="color:#ef4444">{{ formatMoney(tourResultat?.soldeApres) }} €</strong>
+          </div>
+        </v-card-text>
+        <v-card-actions style="justify-content:center;padding-bottom:24px">
+          <v-btn variant="flat" color="red-darken-2" rounded="pill" size="large" @click="allerAccueil">
+            Recommencer une nouvelle partie
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -416,6 +628,52 @@ function moisLabel(n) { return MOIS_FR[(n ?? 1) - 1] }
   border: 1px solid rgba(148,163,184,.2);
   background: rgba(148,163,184,.06);
   margin-left: 6px;
+}
+
+/* ── Dialog transition d'ère ─────────────────────────────── */
+.transition-dialog {
+  background: linear-gradient(160deg, #1e1b4b 0%, #0f172a 100%) !important;
+  border: 1px solid rgba(99,102,241,.4);
+  text-align: center;
+}
+.transition-header {
+  padding: 32px 24px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.transition-big-icon { font-size: 3.5rem; }
+.transition-label {
+  font-size: .8rem;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: #6366f1;
+  margin-top: 4px;
+}
+.transition-era {
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: #e2e8f0;
+}
+.transition-year {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #a5b4fc;
+}
+.transition-body {
+  padding: 12px 28px 20px;
+}
+.transition-line {
+  font-size: .88rem;
+  color: #94a3b8;
+  line-height: 1.7;
+  margin-bottom: 8px;
+}
+.transition-line-main {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #e2e8f0;
 }
 
 /* ── Dialog résultats ─────────────────────────────────────── */
@@ -497,5 +755,143 @@ function moisLabel(n) { return MOIS_FR[(n ?? 1) - 1] }
 .resultat-actions {
   padding: 8px 24px 20px;
   justify-content: flex-end;
+}
+
+/* ── Dialog résultats combats ─────────────────────────────── */
+.combat-resultat {
+  margin-bottom: 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.08);
+  overflow: hidden;
+}
+.combat-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+}
+.combat-banner-icon { font-size: 1.1rem; }
+.combat-banner-label {
+  font-size: .8rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.combat-org {
+  margin-left: auto;
+  font-size: .72rem;
+  color: #64748b;
+}
+.combat-matchup {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 8px 14px;
+}
+.combat-fighter {
+  font-size: .88rem;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+.combat-vs {
+  font-size: .7rem;
+  font-weight: 800;
+  color: #475569;
+  letter-spacing: .05em;
+}
+.combat-details {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px 10px;
+}
+.combat-method {
+  font-size: .78rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(99,102,241,.2);
+  color: #a5b4fc;
+}
+.combat-detail-text {
+  font-size: .78rem;
+  color: #64748b;
+}
+
+/* ── Résumé financier ─────────────────────────────────────── */
+.finance-summary {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.06);
+}
+.finance-summary--training {
+  margin: 12px 0 4px;
+}
+.finance-title {
+  font-size: .8rem;
+  font-weight: 700;
+  color: #94a3b8;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.finance-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: .83rem;
+  color: #94a3b8;
+  margin-bottom: 4px;
+}
+.finance-neg { color: #ef4444; font-weight: 600; }
+.finance-balance {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255,255,255,.06);
+  color: #e2e8f0;
+  font-weight: 700;
+}
+
+/* ── Game Over ────────────────────────────────────────────── */
+.gameover-dialog {
+  background: linear-gradient(160deg, #1a0505 0%, #0f172a 100%) !important;
+  border: 1px solid rgba(239,68,68,.5);
+  text-align: center;
+}
+.gameover-header {
+  padding: 36px 24px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.gameover-icon  { font-size: 3.5rem; }
+.gameover-title {
+  font-size: 2rem;
+  font-weight: 900;
+  color: #ef4444;
+  letter-spacing: .06em;
+}
+.gameover-sub {
+  font-size: .9rem;
+  color: #94a3b8;
+}
+.gameover-body {
+  padding: 8px 28px 16px;
+  color: #94a3b8;
+  font-size: .88rem;
+  line-height: 1.7;
+}
+.gameover-body p { margin-bottom: 8px; }
+.gameover-solde {
+  margin-top: 14px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: rgba(239,68,68,.1);
+  border: 1px solid rgba(239,68,68,.2);
+  color: #e2e8f0;
+  font-size: .9rem;
 }
 </style>

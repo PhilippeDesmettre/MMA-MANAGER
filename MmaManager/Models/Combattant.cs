@@ -54,5 +54,15 @@ public class Combattant
     public int Salaire { get; set; }
     public int Valeur { get; set; }
 
+    // Bilan sportif
+    public short Victoires    { get; set; }
+    public short Defaites     { get; set; }
+    public short Nuls         { get; set; }
+    public short VictoiresKO  { get; set; }
+    public short VictoiresSub { get; set; }
+    public short VictoiresDec { get; set; }
+    public short DefaitesKO   { get; set; }
+    public short DefaitesSub  { get; set; }
+
     public Pays? PaysOrigine { get; set; }
 }
