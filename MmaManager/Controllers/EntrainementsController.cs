@@ -224,10 +224,12 @@ public class EntrainementsController(MmaContext db) : ControllerBase
 
         var rng = new Random();
 
-        // ── ÉTAPE 1 : Combats planifiés pour ce tour ──────────────
+        // ── ÉTAPE 1 : Combats planifiés pour le tour suivant ──────
+        // On simule les combats prévus pour le tour vers lequel on avance
+        var tourCible = partie.TourActuel + 1;
         var combatsDuTour = await db.CombatsPlanifies
             .Where(cp => cp.PartieID  == partie.PartieID
-                      && cp.TourPrevu == partie.TourActuel
+                      && cp.TourPrevu <= tourCible
                       && cp.Statut    == "Planifie")
             .Include(cp => cp.Combattant)
             .Include(cp => cp.Adversaire)
@@ -291,6 +293,35 @@ public class EntrainementsController(MmaContext db) : ControllerBase
             // ── Marquer le combat comme effectué ─────────────────
             combat.Statut = "Effectue";
 
+            // ── Mettre à jour le contrat d'organisation ──────────
+            var contrat = await db.ContratsOrganisation
+                .FirstOrDefaultAsync(co => co.PartieID       == partie.PartieID
+                                        && co.CombattantID   == notre.CombattantID
+                                        && co.OrganisationID == combat.OrganisationID
+                                        && co.Statut         == "Actif");
+            if (contrat is not null)
+            {
+                contrat.CombatsEffectues++;
+                if (contrat.CombatsEffectues >= contrat.NombreCombats)
+                    contrat.Statut = "Termine";
+            }
+
+            // ── Calcul de la bourse selon le prestige de l'organisation ──
+            var prestige = combat.Organisation!.Prestige;
+            int bourseVMin = prestige * prestige * 500;
+            int bourseVMax = prestige * prestige * 2000;
+            int bourseDMin = (int)(bourseVMin * 0.3);
+            int bourseDMax = (int)(bourseVMax * 0.3);
+            decimal bourse;
+            if (sim.EstNul)
+                bourse = rng.Next(bourseDMax, bourseVMin + 1); // entre défaite max et victoire min
+            else if (sim.EstVictoire)
+                bourse = rng.Next(bourseVMin, bourseVMax + 1);
+            else
+                bourse = rng.Next(bourseDMin, bourseDMax + 1);
+
+            partie.Argent += bourse;
+
             combatsResultats.Add(new CombatSimuleDto(
                 notre.CombattantID,
                 $"{notre.Prenom} {notre.NomFamille}",
@@ -301,7 +332,9 @@ public class EntrainementsController(MmaContext db) : ControllerBase
                 sim.EstNul,
                 sim.Methode,
                 sim.Round,
-                sim.Details
+                sim.Details,
+                bourse,
+                sim.Rounds
             ));
         }
 
@@ -431,124 +464,266 @@ public class EntrainementsController(MmaContext db) : ControllerBase
             .Where(p => p.UserID == CurrentUserId && p.EstActive)
             .FirstOrDefaultAsync();
 
-    // ── Simulation de combat ──────────────────────────────────────
+    // ── Simulation de combat round par round ─────────────────────
 
     private record SimResultat(
         bool   EstVictoire,
         bool   EstNul,
         string Methode,
         byte   Round,
-        string Details);
+        string Details,
+        List<RoundDetailDto> Rounds);
 
     /// <summary>
-    /// Simule un combat MMA en 3 rounds.
-    /// Algorithme :
-    ///   1. Scores composites (striking, grappling, cardio, fight IQ)
-    ///   2. Phase du combat : debout vs sol selon les takedowns
-    ///   3. Score effectif + bruit aléatoire gaussien (~±20 pts)
-    ///   4. Nul si écart très faible (10 % de chance)
-    ///   5. Méthode : KO, TKO, Soumission ou Décision
-    /// Plus l'écart de niveau est grand, plus le résultat est prévisible.
+    /// Simule un combat MMA en 3 rounds, round par round.
+    /// Chaque round est simulé indépendamment avec :
+    ///   - Phase (debout/sol) déterminée par les takedowns
+    ///   - Score de domination influencé par le gameplan
+    ///   - Possibilité de finish (KO/TKO/Soumission) à chaque round
+    ///   - Fatigue progressive (cardio)
+    ///   - Le "menton" (StatMentoniere) influence fortement les chances de KO
     /// </summary>
     private static SimResultat SimulerCombat(
         Combattant notre, Combattant adverse, string orgNom, string gameplan, Random rng)
     {
-        // ── Scores composites ─────────────────────────────────────
+        // ── Scores composites (uniquement champs existants sur Combattant) ──
         static double Striking(Combattant c) =>
-            c.StatFrappeDebout * 0.40 + c.StatPuissance * 0.30 + c.StatPrecision * 0.30;
+            c.StatFrappeDebout * 0.40 + c.StatPuissance * 0.35 + c.StatPrecision * 0.25;
 
         static double Grappling(Combattant c) =>
             c.StatWrestling * 0.25 + c.StatJiuJitsu * 0.40 + c.StatSubmission * 0.35;
 
+        // Défense : vitesse + agilité pour esquiver, anti-takedown, récupération
+        static double Defense(Combattant c) =>
+            c.StatVitesse * 0.30 + c.StatAgilite * 0.30 + c.StatAntiTakedown * 0.20 + c.StatRecuperation * 0.20;
+
         static double FightIQ(Combattant c) =>
-            c.StatMental * 0.50 + c.StatExperience * 0.35 + c.StatAdaptation * 0.15;
+            c.StatMental * 0.40 + c.StatExperience * 0.35 + c.StatAdaptation * 0.25;
 
-        // ── Phase du combat : debout vs sol ───────────────────────
-        double tdN = notre.StatTakedown   / (double)(notre.StatTakedown   + adverse.StatAntiTakedown + 1);
-        double tdA = adverse.StatTakedown / (double)(adverse.StatTakedown + notre.StatAntiTakedown   + 1);
+        double Bruit() => (rng.NextDouble() + rng.NextDouble() - 1.0) * 15.0;
 
-        // Bonus si grappler dominant
-        if (Grappling(notre)   > Striking(notre)   + 8) tdN = Math.Min(0.80, tdN + 0.15);
-        if (Grappling(adverse) > Striking(adverse) + 8) tdA = Math.Min(0.80, tdA + 0.15);
+        string[] koTypes   = ["KO", "TKO (coups)", "TKO (arrêt médecin)"];
+        string[] subTypes  = ["Rear Naked Choke", "Armbar", "Triangle Choke", "Guillotine", "Heel Hook",
+                              "Kimura", "D'Arce Choke", "Anaconda Choke"];
+        string[] gnpDescs  = ["ground and pound", "coups au sol"];
 
-        // ── Influence du gameplan sur la phase ────────────────────
-        // Striking : rend les takedowns très difficiles sur notre combattant
-        // Grappling : boost significatif de la chance d'aller au sol
-        if      (gameplan == "Striking")  tdN = tdN * 0.25;
-        else if (gameplan == "Grappling") tdN = Math.Min(0.90, tdN * 1.8);
+        var rounds = new List<RoundDetailDto>();
+        bool combatTermine = false;
+        bool notreVictoire = false;
+        bool estNul        = false;
+        string methodeFinale = "";
+        byte roundFin       = 3;
+        string detailsFinal = "";
 
-        bool auSol = rng.NextDouble() < Math.Max(tdN, tdA) * 0.65;
+        int scoreCarteN = 0; // cumul points carte de score (notre)
+        int scoreCarteA = 0;
 
-        // ── Score effectif + bruit aléatoire ─────────────────────
-        // (somme de deux U[0,1] ≈ gaussienne centrée)
-        double Effectif(Combattant c) =>
-            (auSol ? Grappling(c) : Striking(c)) * 0.50
-            + c.StatCardio * 0.25
-            + FightIQ(c)   * 0.25;
-
-        double Bruit() => (rng.NextDouble() + rng.NextDouble() - 1.0) * 20.0;
-
-        double sN = Math.Max(1, Effectif(notre)   + Bruit());
-        double sA = Math.Max(1, Effectif(adverse) + Bruit());
-
-        // ── Nul ? (rare : <10 %, uniquement si scores très proches) ─
-        bool estNul = Math.Abs(sN - sA) < 3.5 && rng.NextDouble() < 0.10;
-
-        if (estNul)
-            return new SimResultat(false, true, "Nul", 3, "Match nul — décision partagée");
-
-        bool notreVictoire = sN > sA;
-        var  winner = notreVictoire ? notre   : adverse;
-        var  loser  = notreVictoire ? adverse : notre;
-
-        // ── Méthode de victoire ───────────────────────────────────
-        double strikeW    = Striking(winner);
-        double grapplingW = Grappling(winner);
-
-        // Modificateurs de gameplan sur les probabilités de finish
-        double koMult  = gameplan == "Striking"  ? 1.35 : gameplan == "Grappling" ? 0.70 : 1.0;
-        double subMult = gameplan == "Grappling" ? 1.40 : gameplan == "Striking"  ? 0.60 : 1.0;
-
-        // Debout → KO
-        double koChance  = !auSol ? (strikeW    / 100.0) * Math.Max(0, 1 - loser.StatMentoniere  / 100.0) * 0.55 * koMult  : 0;
-        // Sol   → TKO (ground & pound)
-        double tkoChance = auSol  ? (strikeW    / 100.0) * Math.Max(0, 1 - loser.StatMentoniere  / 100.0) * 0.22 * koMult  : 0;
-        // Sol   → Soumission
-        double subChance = auSol  ? (grapplingW / 100.0) * Math.Max(0, 1 - loser.StatEvasionSub  / 100.0) * 0.45 * subMult : 0;
-
-        double roll = rng.NextDouble();
-        string methode;
-        byte   round;
-        string details;
-
-        if (roll < koChance)
+        for (int rd = 1; rd <= 3 && !combatTermine; rd++)
         {
-            methode = "KO";
-            round   = (byte)(rng.Next(3) + 1);
-            details = $"KO au round {round}";
-        }
-        else if (roll < koChance + tkoChance)
-        {
-            methode = "TKO";
-            round   = (byte)(rng.Next(3) + 1);
-            details = $"TKO (ground and pound) au round {round}";
-        }
-        else if (roll < koChance + tkoChance + subChance)
-        {
-            string[] subs = ["Rear Naked Choke", "Armbar", "Triangle", "Guillotine", "Heel Hook"];
-            methode = "Soumission";
-            round   = (byte)(rng.Next(3) + 1);
-            details = $"Soumission ({subs[rng.Next(subs.Length)]}) au round {round}";
-        }
-        else
-        {
-            bool unanime = rng.NextDouble() < 0.70;
-            methode = unanime ? "Décision unanime" : "Décision partagée";
-            round   = 3;
-            details = $"{methode} après 3 rounds";
+            // ── Fatigue : les stats baissent avec les rounds ─────
+            double fatigueMult = rd switch
+            {
+                1 => 1.0,
+                2 => 0.90 - (1.0 - notre.StatCardio / 100.0) * 0.10,
+                3 => 0.80 - (1.0 - notre.StatCardio / 100.0) * 0.20,
+                _ => 0.75
+            };
+            double fatigueMultA = rd switch
+            {
+                1 => 1.0,
+                2 => 0.90 - (1.0 - adverse.StatCardio / 100.0) * 0.10,
+                3 => 0.80 - (1.0 - adverse.StatCardio / 100.0) * 0.20,
+                _ => 0.75
+            };
+
+            // ── Phase du round : debout vs sol ───────────────────
+            double tdN = notre.StatTakedown   / (double)(notre.StatTakedown   + adverse.StatAntiTakedown + 1);
+            double tdA = adverse.StatTakedown / (double)(adverse.StatTakedown + notre.StatAntiTakedown   + 1);
+
+            if (Grappling(notre)   > Striking(notre)   + 8)  tdN = Math.Min(0.80, tdN + 0.15);
+            if (Grappling(adverse) > Striking(adverse) + 8)  tdA = Math.Min(0.80, tdA + 0.15);
+
+            // Influence du gameplan
+            if      (gameplan == "Striking")  { tdN *= 0.25; tdA *= 1.1; } // notre veut rester debout
+            else if (gameplan == "Grappling") { tdN = Math.Min(0.90, tdN * 1.8); tdA *= 0.7; }
+
+            bool auSol = rng.NextDouble() < Math.Max(tdN, tdA) * 0.60;
+
+            // ── Score de round ───────────────────────────────────
+            double scoreN, scoreA;
+            if (auSol)
+            {
+                scoreN = Grappling(notre)   * 0.45 * fatigueMult  + FightIQ(notre)   * 0.25 + notre.StatForce   * 0.15 + Bruit();
+                scoreA = Grappling(adverse) * 0.45 * fatigueMultA + FightIQ(adverse) * 0.25 + adverse.StatForce * 0.15 + Bruit();
+            }
+            else
+            {
+                scoreN = Striking(notre)   * 0.40 * fatigueMult  + Defense(notre)   * 0.20 + FightIQ(notre)   * 0.20 + notre.StatVitesse   * 0.10 + Bruit();
+                scoreA = Striking(adverse) * 0.40 * fatigueMultA + Defense(adverse) * 0.20 + FightIQ(adverse) * 0.20 + adverse.StatVitesse * 0.10 + Bruit();
+            }
+
+            string gagnantRound;
+            int ptN = 9, ptA = 9;
+            if (Math.Abs(scoreN - scoreA) < 3.0)
+            {
+                gagnantRound = "Egal";
+                ptN = 10; ptA = 10;
+            }
+            else if (scoreN > scoreA)
+            {
+                gagnantRound = "Combattant";
+                ptN = 10; ptA = scoreN - scoreA > 12 ? 8 : 9;
+            }
+            else
+            {
+                gagnantRound = "Adversaire";
+                ptA = 10; ptN = scoreA - scoreN > 12 ? 8 : 9;
+            }
+
+            scoreCarteN += ptN;
+            scoreCarteA += ptA;
+
+            // ── Tentative de finish ──────────────────────────────
+            // Calcul des chances de KO, TKO et soumission pour ce round
+            double koMult  = gameplan == "Striking"  ? 1.40 : gameplan == "Grappling" ? 0.65 : 1.0;
+            double subMult = gameplan == "Grappling" ? 1.45 : gameplan == "Striking"  ? 0.55 : 1.0;
+
+            // Chance de KO/TKO : dépend du striking du gagnant ET du menton du perdant
+            var attaquant = scoreN > scoreA ? notre   : adverse;
+            var defenseur = scoreN > scoreA ? adverse : notre;
+            bool notreAttaque = scoreN > scoreA;
+
+            double mentonDefenseur = defenseur.StatMentoniere / 100.0;
+            double strikingAtt    = Striking(attaquant) / 100.0;
+
+            // Le menton est LE facteur clé pour les KO
+            // Un faible menton (< 30) rend le KO très probable face à un bon frappeur
+            double koChance = 0;
+            if (!auSol)
+            {
+                // Debout : KO propre — le menton est LE facteur clé
+                // Math.Max garanti un minimum de 15% d'effet même avec un menton de fer
+                koChance = strikingAtt * Math.Max(0.15, 1.0 - mentonDefenseur) * 0.55 * koMult;
+                // Bonus si le round est dominé largement
+                if (Math.Abs(scoreN - scoreA) > 10) koChance *= 1.6;
+            }
+
+            double tkoChance = 0;
+            if (auSol)
+            {
+                // Sol : TKO par ground & pound
+                tkoChance = strikingAtt * Math.Max(0.15, 1.0 - mentonDefenseur * 0.7) * 0.35 * koMult;
+            }
+
+            double grapplingAtt    = Grappling(attaquant) / 100.0;
+            double evasionDefenseur = defenseur.StatEvasionSub / 100.0;
+
+            double subChance = 0;
+            if (auSol)
+            {
+                subChance = grapplingAtt * Math.Max(0.10, 1.0 - evasionDefenseur) * 0.48 * subMult;
+            }
+
+            // Fatigue augmente les chances de finish dans les rounds tardifs
+            double fatigueBonus = rd == 3 ? 1.5 : rd == 2 ? 1.2 : 1.0;
+            koChance  *= fatigueBonus;
+            tkoChance *= fatigueBonus;
+            subChance *= fatigueBonus;
+
+            double roll = rng.NextDouble();
+            string actions;
+            bool finish = false;
+            string? methodeFinish = null;
+
+            if (roll < koChance)
+            {
+                finish = true;
+                methodeFinish = koTypes[rng.Next(koTypes.Length)];
+                combatTermine = true;
+                notreVictoire = notreAttaque;
+                methodeFinale = methodeFinish.StartsWith("TKO") ? "TKO" : "KO";
+                roundFin = (byte)rd;
+                actions = $"{(notreAttaque ? "Notre combattant" : "L'adversaire")} décroche un {methodeFinish} dévastateur !";
+                detailsFinal = $"{methodeFinish} au round {rd}";
+            }
+            else if (roll < koChance + tkoChance)
+            {
+                finish = true;
+                methodeFinish = $"TKO ({gnpDescs[rng.Next(gnpDescs.Length)]})";
+                combatTermine = true;
+                notreVictoire = notreAttaque;
+                methodeFinale = "TKO";
+                roundFin = (byte)rd;
+                actions = $"{(notreAttaque ? "Notre combattant" : "L'adversaire")} finit par {methodeFinish} !";
+                detailsFinal = $"{methodeFinish} au round {rd}";
+            }
+            else if (roll < koChance + tkoChance + subChance)
+            {
+                var subType = subTypes[rng.Next(subTypes.Length)];
+                finish = true;
+                methodeFinish = $"Soumission ({subType})";
+                combatTermine = true;
+                notreVictoire = notreAttaque;
+                methodeFinale = "Soumission";
+                roundFin = (byte)rd;
+                actions = $"{(notreAttaque ? "Notre combattant" : "L'adversaire")} obtient une {subType} !";
+                detailsFinal = $"Soumission ({subType}) au round {rd}";
+            }
+            else
+            {
+                // Round sans finish — description des actions
+                if (auSol)
+                {
+                    if (gagnantRound == "Egal")
+                        actions = "Round serré au sol, contrôle partagé, peu de dégâts significatifs.";
+                    else
+                    {
+                        var dominant = gagnantRound == "Combattant" ? "Notre combattant" : "L'adversaire";
+                        actions = ptN == 8 || ptA == 8
+                            ? $"{dominant} domine largement au sol avec un contrôle total et des tentatives de soumission."
+                            : $"{dominant} contrôle le round au sol avec une bonne position et quelques frappes.";
+                    }
+                }
+                else
+                {
+                    if (gagnantRound == "Egal")
+                        actions = "Round très serré debout, échanges équilibrés, les deux combattants se neutralisent.";
+                    else
+                    {
+                        var dominant = gagnantRound == "Combattant" ? "Notre combattant" : "L'adversaire";
+                        actions = ptN == 8 || ptA == 8
+                            ? $"{dominant} domine le round avec des combinaisons précises et des dégâts visibles."
+                            : $"{dominant} remporte le round aux points grâce à un meilleur volume de frappes.";
+                    }
+                }
+            }
+
+            rounds.Add(new RoundDetailDto(rd, gagnantRound, ptN, ptA, actions, finish, methodeFinish));
         }
 
-        return new SimResultat(notreVictoire, false, methode, round, details);
+        // ── Si on est allé à la décision ──────────────────────────
+        if (!combatTermine)
+        {
+            roundFin = 3;
+            if (Math.Abs(scoreCarteN - scoreCarteA) <= 1 && rng.NextDouble() < 0.10)
+            {
+                estNul = true;
+                methodeFinale = "Décision partagée (nul)";
+                detailsFinal = $"Match nul — décision partagée ({scoreCarteN}-{scoreCarteA})";
+            }
+            else
+            {
+                notreVictoire = scoreCarteN > scoreCarteA;
+                if (scoreCarteN == scoreCarteA)
+                    notreVictoire = rng.NextDouble() < 0.50; // départage aléatoire si scores identiques
+
+                bool unanime = Math.Abs(scoreCarteN - scoreCarteA) >= 2;
+                methodeFinale = unanime ? "Décision unanime" : "Décision partagée";
+                detailsFinal = $"{methodeFinale} ({scoreCarteN}-{scoreCarteA})";
+            }
+        }
+
+        return new SimResultat(notreVictoire, estNul, methodeFinale, roundFin, detailsFinal, rounds);
     }
 
     // ── Entraînement ─────────────────────────────────────────────

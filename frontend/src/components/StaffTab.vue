@@ -20,6 +20,7 @@ const ROLE_LABELS = {
   CoachConditioning:    { label: 'Coach Conditionnement',   icon: '🏋️', color: '#22c55e' },
   CoachMental:          { label: 'Coach Mental',            icon: '🧠', color: '#a78bfa' },
   PreparateurPhysique:  { label: 'Préparateur Physique',    icon: '💪', color: '#f59e0b' },
+  Agent:                { label: 'Agent',                   icon: '🤝', color: '#06b6d4' },
 }
 
 const embauches = computed(() => staff.value.filter(s => s.estEmbauche))

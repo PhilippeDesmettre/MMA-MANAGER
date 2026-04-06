@@ -6,7 +6,11 @@ public record OrganisationDto(
     int    AnneeCreation,
     int    Prestige,
     string? Description,
-    bool   EstFictive
+    bool   EstFictive,
+    int    BourseVictoireMin,
+    int    BourseVictoireMax,
+    int    BourseDefaiteMin,
+    int    BourseDefaiteMax
 );
 
 public record AdversaireDto(
@@ -15,7 +19,16 @@ public record AdversaireDto(
     string NomFamille,
     string CategoriePoids,
     string StylePrincipal,
-    int    NoteGlobale
+    int    NoteGlobale,
+    int    CompStriking,
+    int    CompLutte,
+    int    CompGrappling,
+    int    CompConditioning,
+    int    CompStamina,
+    int    CompMental,
+    int    Victoires,
+    int    Defaites,
+    int    Nuls
 );
 
 public record CombatPlanifieDto(
@@ -40,6 +53,39 @@ public record PlanifierCombatRequest(
     string Gameplan = "Balanced"   // Striking | Grappling | Balanced
 );
 
+/// <summary>Contrat proposé par l'organisation au moment de planifier un combat.</summary>
+public record ContratPropositionDto(
+    int    OrganisationID,
+    string OrganisationNom,
+    int    NombreCombats,
+    bool   EstExclusif,
+    string Description
+);
+
+/// <summary>Contrat actif d'un combattant.</summary>
+public record ContratActifDto(
+    int    ContratID,
+    int    CombattantID,
+    string CombattantNom,
+    string OrganisationNom,
+    int    NombreCombats,
+    int    CombatsEffectues,
+    int    CombatsRestants,
+    bool   EstExclusif,
+    string Statut
+);
+
+/// <summary>Détails d'un round individuel dans un combat simulé.</summary>
+public record RoundDetailDto(
+    int    NumeroRound,
+    string GagnantRound,       // "Combattant" | "Adversaire" | "Egal"
+    int    ScoreCombattant,    // 10, 9, 8
+    int    ScoreAdversaire,
+    string ActionsPrincipales, // description des actions clés du round
+    bool   EstFinish,          // true si le combat se termine dans ce round
+    string? MethodeFinish      // KO, TKO, Soumission si finish
+);
+
 /// <summary>Résultat d'un combat simulé lors du passage de tour.</summary>
 public record CombatSimuleDto(
     int    CombattantID,
@@ -51,5 +97,7 @@ public record CombatSimuleDto(
     bool   EstNul,
     string MethodeVictoire,
     int    RoundFin,
-    string Details
+    string Details,
+    decimal BourseGagnee,
+    IReadOnlyList<RoundDetailDto> Rounds
 );

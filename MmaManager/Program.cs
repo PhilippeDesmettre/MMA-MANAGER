@@ -509,6 +509,15 @@ using (var scope = app.Services.CreateScope())
         END
     """);
 
+    // Corriger les dates de naissance invalides (combattants trop jeunes pour l'ère 1985)
+    // Un combattant doit avoir au moins 18 ans dès 1985 → né avant 1968
+    db.Database.ExecuteSqlRaw("""
+        UPDATE Combattant
+        SET DateNaissance = DATEADD(year,
+            -(18 + (ABS(CHECKSUM(CombattantID)) % 20)),
+            '1985-06-01')
+        WHERE YEAR(DateNaissance) > 1967
+    """);
 }
 
 // ── Pipeline ──────────────────────────────────────────────────

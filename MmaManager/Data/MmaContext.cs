@@ -24,6 +24,7 @@ public class MmaContext(DbContextOptions<MmaContext> options) : DbContext(option
     public DbSet<ResultatCombatPartie>  ResultatsCombat         { get; set; }
     public DbSet<StaffDisponible>       StaffDisponibles        { get; set; }
     public DbSet<StaffPartie>           StaffParties            { get; set; }
+    public DbSet<ContratOrganisation>   ContratsOrganisation    { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -161,6 +162,20 @@ public class MmaContext(DbContextOptions<MmaContext> options) : DbContext(option
             .HasForeignKey(ep => ep.StaffPartieID)
             .OnDelete(DeleteBehavior.ClientSetNull)
             .IsRequired(false);
+
+        // ContratOrganisation -> Combattant
+        modelBuilder.Entity<ContratOrganisation>()
+            .HasOne(c => c.Combattant)
+            .WithMany()
+            .HasForeignKey(c => c.CombattantID)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // ContratOrganisation -> Organisation
+        modelBuilder.Entity<ContratOrganisation>()
+            .HasOne(c => c.Organisation)
+            .WithMany()
+            .HasForeignKey(c => c.OrganisationID)
+            .OnDelete(DeleteBehavior.Restrict);
 
         // Gym n'a pas de navigation vers Pays, EF ne crée pas de relation automatique
     }

@@ -150,7 +150,7 @@ public class CombattantsController(MmaContext db) : ControllerBase
     {
         var age = anneeJeu - dateNaissance.Year;
         if (dateNaissance.Month > moisJeu) age--;
-        return Math.Max(0, age);
+        return Math.Max(18, age); // un combattant a au minimum 18 ans
     }
 
     private static int Moyenne(params int[] valeurs) =>
@@ -208,6 +208,7 @@ public class CombattantsController(MmaContext db) : ControllerBase
             pays?.Nom ?? "-",
             pays?.Code ?? "-",
             CalculerAge(c.DateNaissance, anneeJeu, moisJeu),
+            c.Genre,
             GetCategoriePoids(c, references),
             GetStylePrincipal(c, references),
             GetBiographie(c),
@@ -222,7 +223,31 @@ public class CombattantsController(MmaContext db) : ControllerBase
             c.Salaire,
             c.Victoires,
             c.Defaites,
-            c.Nuls
+            c.Nuls,
+            c.VictoiresKO,
+            c.VictoiresSub,
+            c.VictoiresDec,
+            c.DefaitesKO,
+            c.DefaitesSub,
+            c.Defaites - c.DefaitesKO - c.DefaitesSub,
+            c.StatFrappeDebout,
+            c.StatPuissance,
+            c.StatPrecision,
+            c.StatWrestling,
+            c.StatTakedown,
+            c.StatAntiTakedown,
+            c.StatJiuJitsu,
+            c.StatSubmission,
+            c.StatEvasionSub,
+            c.StatForce,
+            c.StatVitesse,
+            c.StatAgilite,
+            c.StatCardio,
+            c.StatRecuperation,
+            c.StatMentoniere,
+            c.StatMental,
+            c.StatExperience,
+            c.StatAdaptation
         );
     }
 }

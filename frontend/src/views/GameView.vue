@@ -189,6 +189,11 @@ const MOIS_FR = [
   'Juillet','Août','Septembre','Octobre','Novembre','Décembre',
 ]
 function moisLabel(n) { return MOIS_FR[(n ?? 1) - 1] }
+
+function typeEntrainementIcon(type) {
+  const icons = { Striking: '🥊', Lutte: '🤼', Grappling: '⛩️', Conditionnement: '🏋️', Mental: '🧠' }
+  return icons[type] ?? '🏃'
+}
 function formatMoney(val) {
   return Number(val ?? 0).toLocaleString('fr-FR')
 }
@@ -406,7 +411,7 @@ function formatMoney(val) {
     </v-main>
 
     <!-- ── Dialog résultats combats ────────────────────────────── -->
-    <v-dialog v-model="dialogCombats" max-width="620" persistent>
+    <v-dialog v-model="dialogCombats" max-width="820" persistent>
       <v-card class="resultat-dialog" rounded="xl" elevation="24">
         <v-card-title class="resultat-title">
           <span>🥊 Combats — Tour {{ tourResultat?.tourJoue }}</span>
@@ -439,11 +444,46 @@ function formatMoney(val) {
               <span class="combat-method">{{ c.methodeVictoire }}</span>
               <span class="combat-detail-text">{{ c.details }}</span>
             </div>
+            <!-- Rounds -->
+            <div class="combat-rounds" v-if="c.rounds?.length">
+              <div
+                v-for="r in c.rounds"
+                :key="r.numeroRound"
+                class="round-row"
+                :class="{ 'round-finish': r.estFinish }"
+              >
+                <div class="round-top">
+                  <span class="round-num">R{{ r.numeroRound }}</span>
+                  <span class="round-winner"
+                    :class="{
+                      'round-win':  r.gagnantRound === 'Combattant',
+                      'round-loss': r.gagnantRound === 'Adversaire',
+                      'round-draw': r.gagnantRound === 'Egal'
+                    }">
+                    {{ r.gagnantRound === 'Combattant' ? '✅' : r.gagnantRound === 'Adversaire' ? '❌' : '➖' }}
+                    {{ r.scoreCombattant }}–{{ r.scoreAdversaire }}
+                  </span>
+                  <span class="round-finish-badge" v-if="r.estFinish">🏁 {{ r.methodeFinish }}</span>
+                </div>
+                <div class="round-actions">{{ r.actionsPrincipales }}</div>
+              </div>
+            </div>
+            <!-- Bourse -->
+            <div class="combat-bourse" v-if="c.bourseGagnee">
+              <span class="bourse-label">💰 Bourse :</span>
+              <span class="bourse-amount" :class="c.estVictoire ? 'bourse-win' : c.estNul ? 'bourse-draw' : 'bourse-loss'">
+                +{{ formatMoney(c.bourseGagnee) }} €
+              </span>
+            </div>
           </div>
 
           <!-- Résumé financier -->
           <div class="finance-summary">
             <div class="finance-title">💰 Bilan financier du mois</div>
+            <div class="finance-row finance-pos" v-if="tourResultat?.combatsResultats?.some(c => c.bourseGagnee)">
+              <span>Bourses de combat</span>
+              <span class="finance-green">+{{ formatMoney(tourResultat.combatsResultats.reduce((s, c) => s + (c.bourseGagnee || 0), 0)) }} €</span>
+            </div>
             <div class="finance-row">
               <span>Dépenses (salaires + loyer)</span>
               <span class="finance-neg">−{{ formatMoney(tourResultat?.depensesTotales) }} €</span>
@@ -505,24 +545,30 @@ function formatMoney(val) {
             Aucun entraînement planifié ce tour.
           </div>
           <div v-else>
+            <div class="section-title">📋 Résultats d'entraînement</div>
             <div
               v-for="r in tourResultat?.resultats"
               :key="r.combattantID"
               class="fighter-resultat"
             >
               <div class="fighter-resultat-header">
-                <span class="fighter-resultat-name">{{ r.prenom }} {{ r.nomFamille }}</span>
-                <span class="fighter-resultat-type">{{ r.typeEntrainement }}</span>
+                <div class="fighter-resultat-left">
+                  <span class="fighter-resultat-name">{{ r.prenom }} {{ r.nomFamille }}</span>
+                  <span class="fighter-resultat-type">
+                    {{ typeEntrainementIcon(r.typeEntrainement) }} {{ r.typeEntrainement }}
+                  </span>
+                </div>
+                <span class="fighter-resultat-bilan" v-if="r.gains.length > 0">
+                  {{ r.gains.length }} stat{{ r.gains.length > 1 ? 's' : '' }} améliorée{{ r.gains.length > 1 ? 's' : '' }}
+                </span>
               </div>
-              <div class="gains-list">
+              <div class="gains-list" v-if="r.gains.length > 0">
                 <div v-for="g in r.gains" :key="g.stat" class="gain-row">
                   <span class="gain-stat">{{ g.stat }}</span>
                   <span class="gain-value">+{{ g.gain }}</span>
                 </div>
-                <div v-if="r.gains.length === 0" class="gain-row">
-                  <span class="gain-stat" style="color:#64748b">Déjà au maximum</span>
-                </div>
               </div>
+              <div v-else class="gains-empty">Aucun progrès ce mois — stats déjà au maximum.</div>
             </div>
           </div>
         </v-card-text>
@@ -704,8 +750,16 @@ function formatMoney(val) {
   text-align: center;
   padding: 24px 0;
 }
+.section-title {
+  font-size: .78rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  margin-bottom: 12px;
+}
 .fighter-resultat {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   padding: 12px 14px;
   border-radius: 12px;
   background: rgba(255,255,255,.04);
@@ -713,9 +767,15 @@ function formatMoney(val) {
 }
 .fighter-resultat-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   margin-bottom: 8px;
+  gap: 8px;
+}
+.fighter-resultat-left {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 .fighter-resultat-name {
   font-weight: 600;
@@ -723,11 +783,24 @@ function formatMoney(val) {
   color: #e2e8f0;
 }
 .fighter-resultat-type {
-  font-size: .75rem;
+  font-size: .74rem;
   padding: 2px 10px;
   border-radius: 20px;
   background: rgba(99,102,241,.2);
   color: #a5b4fc;
+  display: inline-block;
+  width: fit-content;
+}
+.fighter-resultat-bilan {
+  font-size: .72rem;
+  color: #22c55e;
+  white-space: nowrap;
+  align-self: flex-start;
+}
+.gains-empty {
+  font-size: .76rem;
+  color: #475569;
+  font-style: italic;
 }
 .gains-list {
   display: flex;
@@ -818,6 +891,77 @@ function formatMoney(val) {
   font-size: .78rem;
   color: #64748b;
 }
+.combat-rounds {
+  margin: 6px 0 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  border-top: 1px solid rgba(255,255,255,.08);
+  padding-top: 6px;
+}
+.round-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: .74rem;
+  color: #94a3b8;
+  padding: 5px 6px;
+  border-radius: 6px;
+}
+.round-row.round-finish {
+  background: rgba(251,191,36,.08);
+  border: 1px solid rgba(251,191,36,.15);
+}
+.round-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.round-num {
+  font-weight: 700;
+  color: #64748b;
+  min-width: 22px;
+  font-size: .76rem;
+}
+.round-winner {
+  min-width: 62px;
+  font-weight: 600;
+  font-size: .76rem;
+}
+.round-win   { color: #4ade80; }
+.round-loss  { color: #f87171; }
+.round-draw  { color: #94a3b8; }
+.round-actions {
+  color: #94a3b8;
+  font-size: .73rem;
+  line-height: 1.4;
+  padding-left: 30px;
+  white-space: normal;
+}
+.round-finish-badge {
+  font-weight: 700;
+  color: #fbbf24;
+  font-size: .72rem;
+  white-space: nowrap;
+  margin-left: auto;
+}
+.combat-bourse {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 14px 8px;
+}
+.bourse-label {
+  font-size: .78rem;
+  color: #94a3b8;
+}
+.bourse-amount {
+  font-size: .85rem;
+  font-weight: 700;
+}
+.bourse-win  { color: #22c55e; }
+.bourse-draw { color: #f59e0b; }
+.bourse-loss { color: #f97316; }
 
 /* ── Résumé financier ─────────────────────────────────────── */
 .finance-summary {
@@ -846,6 +990,7 @@ function formatMoney(val) {
   margin-bottom: 4px;
 }
 .finance-neg { color: #ef4444; font-weight: 600; }
+.finance-green { color: #22c55e; font-weight: 600; }
 .finance-balance {
   margin-top: 6px;
   padding-top: 6px;

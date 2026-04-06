@@ -38,6 +38,7 @@ public record CombattantDetailDto(
     string  Nationalite,
     string  CodePays,
     int     Age,
+    string  Genre,
     string  CategoriePoids,
     string  StylePrincipal,
     string? Biographie,
@@ -53,5 +54,31 @@ public record CombattantDetailDto(
     // Bilan sportif
     int     Victoires,
     int     Defaites,
-    int     Nuls
+    int     Nuls,
+    // Détail bilan
+    int     VictoiresKO,
+    int     VictoiresSub,
+    int     VictoiresDec,
+    int     DefaitesKO,
+    int     DefaitesSub,
+    int     DefaitesDec,
+    // Stats individuelles
+    int     StatFrappeDebout,
+    int     StatPuissance,
+    int     StatPrecision,
+    int     StatWrestling,
+    int     StatTakedown,
+    int     StatAntiTakedown,
+    int     StatJiuJitsu,
+    int     StatSubmission,
+    int     StatEvasionSub,
+    int     StatForce,
+    int     StatVitesse,
+    int     StatAgilite,
+    int     StatCardio,
+    int     StatRecuperation,
+    int     StatMentoniere,
+    int     StatMental,
+    int     StatExperience,
+    int     StatAdaptation
 );

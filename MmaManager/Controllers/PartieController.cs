@@ -122,6 +122,60 @@ public class PartieController(MmaContext db) : ControllerBase
         return CreatedAtAction(nameof(GetCurrent), await ToDto(partie));
     }
 
+    // GET /api/partie/all — toutes les parties de l'utilisateur
+    [HttpGet("all")]
+    public async Task<ActionResult<IEnumerable<object>>> GetAll()
+    {
+        var parties = await db.Parties
+            .Include(p => p.Entraineur)
+                .ThenInclude(e => e!.Background)
+            .Where(p => p.UserID == CurrentUserId)
+            .OrderByDescending(p => p.DateDerniereConnexion)
+            .AsNoTracking()
+            .ToListAsync();
+
+        return Ok(parties.Select(p => new
+        {
+            p.PartieID,
+            p.Epoque,
+            p.Argent,
+            p.TourActuel,
+            p.MoisActuel,
+            p.AnneeActuelle,
+            p.EstActive,
+            p.DateCreation,
+            p.DateDerniereConnexion,
+            EntraineurPrenom = p.Entraineur?.Prenom ?? "—",
+            EntraineurNom    = p.Entraineur?.Nom ?? "—",
+            BackgroundIcone  = p.Entraineur?.Background?.Icone ?? "",
+            BackgroundNom    = p.Entraineur?.Background?.Nom ?? "",
+        }));
+    }
+
+    // POST /api/partie/{id}/charger — réactiver une ancienne partie
+    [HttpPost("{id:int}/charger")]
+    public async Task<IActionResult> Charger(int id)
+    {
+        var partie = await db.Parties
+            .FirstOrDefaultAsync(p => p.PartieID == id && p.UserID == CurrentUserId);
+
+        if (partie is null) return NotFound("Partie introuvable.");
+
+        // Désactiver toute partie active
+        var active = await db.Parties
+            .Where(p => p.UserID == CurrentUserId && p.EstActive)
+            .ToListAsync();
+
+        foreach (var a in active) a.EstActive = false;
+
+        // Réactiver la partie choisie
+        partie.EstActive = true;
+        partie.DateDerniereConnexion = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+
+        return Ok();
+    }
+
     // GET /api/partie/finances
     [HttpGet("finances")]
     public async Task<ActionResult<FinancesDto>> GetFinances()

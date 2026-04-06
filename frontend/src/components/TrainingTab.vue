@@ -54,7 +54,18 @@ function selectedCoach(combattantID) {
 }
 
 function selectCoach(combattantID, coach) {
-  coachSelections.value[combattantID] = { id: coach.id, type: coach.type }
+  coachSelections.value = {
+    ...coachSelections.value,
+    [combattantID]: { id: coach.id, type: coach.type }
+  }
+}
+
+function isCoachSelected(combattantID, coach) {
+  const sel = coachSelections.value[combattantID]
+  if (sel) return sel.id === coach.id && sel.type === coach.type
+  // Par défaut : le premier coach de la liste
+  const first = staff.value[0]
+  return first ? (first.id === coach.id && first.type === coach.type) : false
 }
 
 // ── Chargement ────────────────────────────────────────────────
@@ -203,6 +214,37 @@ async function annuler(ep) {
         <!-- Panneau déroulant -->
         <div v-if="expanded === fighter.combattantID" class="training-panel">
 
+          <!-- Stats du combattant -->
+          <div class="fighter-stats-overview">
+            <span class="panel-section-label">Stats actuelles</span>
+            <div class="stats-grid">
+              <div class="stat-group">
+                <span class="stat-group-label">🥊 Striking</span>
+                <div class="stat-bar-row"><span class="stat-name">Frappe</span><div class="stat-bar"><div class="stat-fill strike" :style="{ width: fighter.compStriking + '%' }"></div></div><span class="stat-val">{{ fighter.compStriking }}</span></div>
+              </div>
+              <div class="stat-group">
+                <span class="stat-group-label">🤼 Lutte</span>
+                <div class="stat-bar-row"><span class="stat-name">Wrestling</span><div class="stat-bar"><div class="stat-fill lutte" :style="{ width: fighter.compLutte + '%' }"></div></div><span class="stat-val">{{ fighter.compLutte }}</span></div>
+              </div>
+              <div class="stat-group">
+                <span class="stat-group-label">⛩️ Grappling</span>
+                <div class="stat-bar-row"><span class="stat-name">Jiu-Jitsu</span><div class="stat-bar"><div class="stat-fill grappling" :style="{ width: fighter.compGrappling + '%' }"></div></div><span class="stat-val">{{ fighter.compGrappling }}</span></div>
+              </div>
+              <div class="stat-group">
+                <span class="stat-group-label">🏋️ Condition</span>
+                <div class="stat-bar-row"><span class="stat-name">Physique</span><div class="stat-bar"><div class="stat-fill conditioning" :style="{ width: fighter.compConditioning + '%' }"></div></div><span class="stat-val">{{ fighter.compConditioning }}</span></div>
+              </div>
+              <div class="stat-group">
+                <span class="stat-group-label">🧠 Mental</span>
+                <div class="stat-bar-row"><span class="stat-name">Mental</span><div class="stat-bar"><div class="stat-fill mental" :style="{ width: fighter.compMental + '%' }"></div></div><span class="stat-val">{{ fighter.compMental }}</span></div>
+              </div>
+              <div class="stat-group">
+                <span class="stat-group-label">💪 Endurance</span>
+                <div class="stat-bar-row"><span class="stat-name">Stamina</span><div class="stat-bar"><div class="stat-fill stamina" :style="{ width: fighter.compStamina + '%' }"></div></div><span class="stat-val">{{ fighter.compStamina }}</span></div>
+              </div>
+            </div>
+          </div>
+
           <!-- Sélecteur de coach -->
           <div class="coach-selector">
             <span class="panel-section-label">Coach assigné</span>
@@ -211,9 +253,10 @@ async function annuler(ep) {
                 v-for="coach in staff"
                 :key="coach.type + '_' + coach.id"
                 class="coach-option"
-                :class="{ selected: selectedCoach(fighter.combattantID)?.id === coach.id && selectedCoach(fighter.combattantID)?.type === coach.type }"
+                :class="{ selected: isCoachSelected(fighter.combattantID, coach) }"
                 @click="selectCoach(fighter.combattantID, coach)"
               >
+                <span class="coach-check">{{ isCoachSelected(fighter.combattantID, coach) ? '✅' : '⬜' }}</span>
                 <span>{{ coach.icone }}</span>
                 <span>{{ coach.prenom }} {{ coach.nom }}</span>
                 <span class="coach-type-tag" :class="coach.type === 'Joueur' ? 'tag-joueur' : 'tag-staff'">
@@ -453,6 +496,23 @@ async function annuler(ep) {
   display: flex;
   align-items: center;
   gap: 8px;
+  cursor: pointer;
+  transition: all .2s;
+}
+.coach-option:hover {
+  border-color: rgba(99,102,241,.6);
+  background: rgba(99,102,241,.2);
+}
+.coach-option.selected {
+  border: 2px solid #22c55e;
+  background: rgba(34,197,94,.18);
+  font-weight: 700;
+  color: #4ade80;
+  box-shadow: 0 0 10px rgba(34,197,94,.5);
+}
+.coach-check {
+  font-size: .9rem;
+  flex-shrink: 0;
 }
 .coach-option.disabled {
   opacity: .4;
@@ -506,6 +566,65 @@ async function annuler(ep) {
 .option-icon { font-size: 1.4rem; }
 .option-label { font-size: .82rem; font-weight: 600; color: #e2e8f0; }
 .option-desc { font-size: .68rem; color: #64748b; line-height: 1.3; }
+
+/* Fighter stats overview */
+.fighter-stats-overview {
+  padding-bottom: 4px;
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+@media (max-width: 600px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+.stat-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.stat-group-label {
+  font-size: .7rem;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: .03em;
+}
+.stat-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.stat-name {
+  font-size: .68rem;
+  color: #64748b;
+  min-width: 48px;
+}
+.stat-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255,255,255,.08);
+  overflow: hidden;
+}
+.stat-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width .3s ease;
+}
+.stat-fill.strike       { background: #ef4444; }
+.stat-fill.lutte        { background: #f97316; }
+.stat-fill.grappling    { background: #6366f1; }
+.stat-fill.conditioning { background: #22c55e; }
+.stat-fill.mental       { background: #a855f7; }
+.stat-fill.stamina      { background: #eab308; }
+.stat-val {
+  font-size: .72rem;
+  font-weight: 700;
+  color: #a5b4fc;
+  min-width: 20px;
+  text-align: right;
+}
 
 /* Empty state */
 .empty-state {

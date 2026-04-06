@@ -62,19 +62,26 @@ public class CombatsPlanifiesController(MmaContext db) : ControllerBase
             .AsNoTracking()
             .ToListAsync();
 
-        return Ok(orgs.Select(o => new OrganisationDto(
-            o.OrganisationID,
-            o.Nom,
-            o.AnneeCreation,
-            o.Prestige,
-            o.Description,
-            o.EstFictive
-        )));
+        return Ok(orgs.Select(o =>
+        {
+            // Bourses basées sur le prestige de l'organisation
+            // Prestige 1: 500-1500 (victoire), 200-500 (défaite)
+            // Prestige 5: 15000-50000 (victoire), 5000-15000 (défaite)
+            int bourseVMin = o.Prestige * o.Prestige * 500;
+            int bourseVMax = o.Prestige * o.Prestige * 2000;
+            int bourseDMin = (int)(bourseVMin * 0.3);
+            int bourseDMax = (int)(bourseVMax * 0.3);
+            return new OrganisationDto(
+                o.OrganisationID, o.Nom, o.AnneeCreation, o.Prestige,
+                o.Description, o.EstFictive,
+                bourseVMin, bourseVMax, bourseDMin, bourseDMax
+            );
+        }));
     }
 
-    // GET /api/combats-planifies/adversaires/{combattantID}
+    // GET /api/combats-planifies/adversaires/{combattantID}?organisationID=X
     [HttpGet("adversaires/{combattantID:int}")]
-    public async Task<ActionResult<IEnumerable<AdversaireDto>>> GetAdversaires(int combattantID)
+    public async Task<ActionResult<IEnumerable<AdversaireDto>>> GetAdversaires(int combattantID, [FromQuery] int? organisationID = null)
     {
         var partie = await PartieActive();
         if (partie is null) return NotFound();
@@ -94,20 +101,51 @@ public class CombatsPlanifiesController(MmaContext db) : ControllerBase
         var categoriesF = await db.CategoriesPoidsF.ToDictionaryAsync(c => c.CategorieID, c => c.Nom);
         var styles      = await db.StylesCombat.ToDictionaryAsync(s => s.StyleID, s => s.Nom);
 
+        // Déterminer le prestige de l'organisation pour filtrer le niveau des adversaires
+        int prestigeOrg = 3; // défaut moyen
+        if (organisationID.HasValue)
+        {
+            var org = await db.CombatOrganisations.FindAsync(organisationID.Value);
+            if (org is not null) prestigeOrg = org.Prestige;
+        }
+
+        // Fourchette d'overall basée sur le prestige de l'organisation
+        // Prestige 1 : adversaires 20-55  (amateurs)
+        // Prestige 2 : adversaires 35-65  (régional)
+        // Prestige 3 : adversaires 45-75  (national)
+        // Prestige 4 : adversaires 55-85  (international)
+        // Prestige 5 : adversaires 65-99  (élite)
+        int overallMin = Math.Max(0, prestigeOrg * 12 + 8);
+        int overallMax = Math.Min(99, prestigeOrg * 12 + 43);
+
         var adversaires = await db.Combattants
             .Where(c => !ecurie.Contains(c.CombattantID)
                      && c.CategorieID == combattant.CategorieID
-                     && c.Genre       == combattant.Genre)
-            .OrderBy(c => c.NomFamille)
+                     && c.Genre       == combattant.Genre
+                     && c.Overall     >= overallMin
+                     && c.Overall     <= overallMax)
+            .OrderByDescending(c => c.Overall)
+            .Take(15)
             .AsNoTracking()
             .ToListAsync();
+
+        static int Moyenne(params int[] v) => v.Length == 0 ? 0 : (int)Math.Round(v.Average());
 
         return Ok(adversaires.Select(c =>
         {
             var cats = c.Genre == "F" ? categoriesF : categoriesH;
             var cat  = cats.TryGetValue(c.CategorieID, out var n) ? n : "Inconnue";
             var sty  = c.StylePrincipalID.HasValue && styles.TryGetValue(c.StylePrincipalID.Value, out var s) ? s : "Polyvalent";
-            return new AdversaireDto(c.CombattantID, c.Prenom, c.NomFamille, cat, sty, c.Overall);
+            return new AdversaireDto(
+                c.CombattantID, c.Prenom, c.NomFamille, cat, sty, c.Overall,
+                Moyenne(c.StatFrappeDebout, c.StatPuissance, c.StatPrecision),
+                Moyenne(c.StatWrestling, c.StatTakedown, c.StatAntiTakedown),
+                Moyenne(c.StatJiuJitsu, c.StatSubmission, c.StatEvasionSub),
+                Moyenne(c.StatForce, c.StatVitesse, c.StatAgilite),
+                Moyenne(c.StatCardio, c.StatRecuperation, c.StatMentoniere),
+                Moyenne(c.StatMental, c.StatExperience, c.StatAdaptation),
+                c.Victoires, c.Defaites, c.Nuls
+            );
         }));
     }
 
@@ -138,6 +176,55 @@ public class CombatsPlanifiesController(MmaContext db) : ControllerBase
                          && cp.CombattantID == req.CombattantID
                          && cp.Statut       == "Planifie");
         if (combatExistant) return BadRequest("Ce combattant a déjà un combat planifié.");
+
+        // Vérifier si un contrat exclusif empêche de combattre dans cette organisation
+        var contratExclusif = await db.ContratsOrganisation
+            .FirstOrDefaultAsync(co => co.PartieID     == partie.PartieID
+                                    && co.CombattantID == req.CombattantID
+                                    && co.EstExclusif
+                                    && co.Statut       == "Actif");
+
+        if (contratExclusif is not null && contratExclusif.OrganisationID != req.OrganisationID)
+            return BadRequest($"Ce combattant est sous contrat exclusif. Il doit encore effectuer {contratExclusif.NombreCombats - contratExclusif.CombatsEffectues} combat(s) avec son organisation actuelle.");
+
+        // Créer un contrat d'organisation si aucun contrat actif avec cette org
+        var contratActif = await db.ContratsOrganisation
+            .FirstOrDefaultAsync(co => co.PartieID       == partie.PartieID
+                                    && co.CombattantID   == req.CombattantID
+                                    && co.OrganisationID == req.OrganisationID
+                                    && co.Statut         == "Actif");
+
+        if (contratActif is null)
+        {
+            // Déterminer le type de contrat selon l'ère
+            int nbCombats = 1;
+            bool exclusif = false;
+
+            if (partie.Epoque != "NoRules")
+            {
+                // GoldenAge et Modern : contrats multi-combats possibles, surtout pour les orgs de prestige élevé
+                if (org.Prestige >= 4)
+                {
+                    nbCombats = 3;
+                    exclusif = true;
+                }
+                else if (org.Prestige >= 3)
+                {
+                    nbCombats = 2;
+                    exclusif = partie.Epoque == "Modern"; // exclusivité seulement en Modern pour prestige 3
+                }
+            }
+
+            db.ContratsOrganisation.Add(new ContratOrganisation
+            {
+                PartieID       = partie.PartieID,
+                CombattantID   = req.CombattantID,
+                OrganisationID = req.OrganisationID,
+                NombreCombats  = nbCombats,
+                EstExclusif    = exclusif,
+                TourDebut      = partie.TourActuel,
+            });
+        }
 
         // Récupérer l'agent joueur
         var agent = await db.Agents

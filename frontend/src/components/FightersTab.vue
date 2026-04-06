@@ -27,7 +27,11 @@ const snackbarMsg   = ref('')
 // Filtre catégorie dans recrutement
 const filterCat    = ref('Toutes')
 
-const CATEGORIES = ['Toutes', 'Plume', 'Léger', 'Welter', 'Moyen', 'Mi-lourd', 'Lourd']
+// Catégories construites dynamiquement depuis les données
+const CATEGORIES = computed(() => {
+  const cats = [...new Set(disponibles.value.map(f => f.categoriePoids))].sort()
+  return ['Toutes', ...cats]
+})
 
 const STYLE_ICONS = {
   'Kickboxeur':   '🦶',
@@ -41,12 +45,23 @@ const STYLE_ICONS = {
 }
 
 const CAT_COLORS = {
-  'Plume':    '#38bdf8',
-  'Léger':    '#818cf8',
-  'Welter':   '#a78bfa',
-  'Moyen':    '#6366f1',
-  'Mi-lourd': '#f97316',
-  'Lourd':    '#ef4444',
+  'Poids paille':    '#22d3ee',
+  'Poids mouche':    '#34d399',
+  'Poids coq':       '#38bdf8',
+  'Poids plume':     '#818cf8',
+  'Poids léger':     '#a78bfa',
+  'Poids mi-moyen':  '#c084fc',
+  'Poids moyen':     '#6366f1',
+  'Poids mi-lourd':  '#f97316',
+  'Lourd':           '#ef4444',
+  'Super-lourd':     '#dc2626',
+  // Femmes (suffixe " F")
+  'Poids paille F':    '#22d3ee',
+  'Poids mouche F':    '#34d399',
+  'Poids coq F':       '#38bdf8',
+  'Poids plume F':     '#818cf8',
+  'Poids léger F':     '#a78bfa',
+  'Poids mi-moyen F':  '#c084fc',
 }
 
 // ── Computed ─────────────────────────────────────────────────────
@@ -114,6 +129,13 @@ function statColor(val) {
   if (val >= 55) return '#f59e0b'
   if (val >= 40) return '#f97316'
   return '#ef4444'
+}
+
+// Dégradé continu 0→rouge, 50→jaune, 100→vert pour les stats brutes
+function rawStatColor(val) {
+  const n = typeof val === 'number' && !isNaN(val) ? Math.max(0, Math.min(100, val)) : 0
+  const hue = Math.round((n / 100) * 120)
+  return `hsl(${hue}, 70%, 52%)`
 }
 
 function noteColor(note) {
@@ -307,89 +329,169 @@ onMounted(() => {
   </div>
 
   <!-- ── Dialog détail combattant ──────────────────────────────── -->
-  <v-dialog v-model="dialog" max-width="560" scrollable>
+  <v-dialog v-model="dialog" max-width="680" scrollable>
     <v-card v-if="dialogFighter" class="fighter-dialog" rounded="xl" elevation="16">
-      <!-- Header -->
-      <div class="dialog-header">
-        <div class="dialog-header-left">
+
+      <!-- ── Barre titre ── -->
+      <div class="dialog-topbar">
+        <span
+          class="fighter-cat-badge"
+          :style="{ background: catColor(dialogFighter.categoriePoids) + '22', color: catColor(dialogFighter.categoriePoids), borderColor: catColor(dialogFighter.categoriePoids) + '55' }"
+        >{{ dialogFighter.categoriePoids }}</span>
+        <v-spacer />
+        <v-btn icon="mdi-close" variant="text" size="small" @click="dialog = false" />
+      </div>
+
+      <!-- ── Hero section ── -->
+      <div class="dialog-hero">
+        <div class="dialog-hero-left">
           <span class="dialog-style-icon">{{ styleIcon(dialogFighter.stylePrincipal) }}</span>
           <div>
             <div class="dialog-name">{{ dialogFighter.prenom }} {{ dialogFighter.nom }}</div>
-            <div class="dialog-meta">
-              {{ dialogFighter.nationalite }} · {{ dialogFighter.age }} ans
-            </div>
+            <div class="dialog-nickname" v-if="dialogFighter.biographie">{{ dialogFighter.biographie }}</div>
           </div>
         </div>
-        <div class="dialog-header-right">
-          <span
-            class="fighter-cat-badge"
-            :style="{ background: catColor(dialogFighter.categoriePoids) + '22', color: catColor(dialogFighter.categoriePoids), borderColor: catColor(dialogFighter.categoriePoids) + '55' }"
-          >{{ dialogFighter.categoriePoids }}</span>
-          <v-btn icon="mdi-close" variant="text" size="small" @click="dialog = false" />
+        <div class="dialog-overall-badge" :style="{ color: noteColor(dialogFighter.noteGlobale), borderColor: noteColor(dialogFighter.noteGlobale) + '55', background: noteColor(dialogFighter.noteGlobale) + '14' }">
+          <span class="dialog-overall-num">{{ dialogFighter.noteGlobale }}</span>
+          <span class="dialog-overall-label">OVR</span>
         </div>
       </div>
 
-      <v-divider style="border-color:rgba(99,102,241,.2)" />
-
       <v-card-text class="dialog-body">
 
-        <!-- Note globale -->
-        <div class="dialog-note-block">
-          <span class="dialog-note-label">Note globale</span>
-          <span
-            class="dialog-note-val"
-            :style="{ color: noteColor(dialogFighter.noteGlobale) }"
-          >{{ dialogFighter.noteGlobale }}</span>
-          <span class="dialog-note-sub">/ 99</span>
+        <!-- ── Identité ── -->
+        <div class="dialog-section-title">👤 Identité</div>
+        <div class="dialog-identity-grid">
+          <div class="dialog-id-item">
+            <span class="dialog-id-label">🎂 Âge</span>
+            <span class="dialog-id-val">{{ dialogFighter.age }} ans</span>
+          </div>
+          <div class="dialog-id-item">
+            <span class="dialog-id-label">🌍 Nationalité</span>
+            <span class="dialog-id-val">{{ dialogFighter.nationalite }}</span>
+          </div>
+          <div class="dialog-id-item">
+            <span class="dialog-id-label">⚧ Genre</span>
+            <span class="dialog-id-val">{{ dialogFighter.genre === 'F' ? 'Femme' : 'Homme' }}</span>
+          </div>
+          <div class="dialog-id-item">
+            <span class="dialog-id-label">🥋 Style</span>
+            <span class="dialog-id-val">{{ styleIcon(dialogFighter.stylePrincipal) }} {{ dialogFighter.stylePrincipal }}</span>
+          </div>
         </div>
 
-        <!-- Bio -->
-        <p v-if="dialogFighter.biographie" class="dialog-bio">
-          {{ dialogFighter.biographie }}
-        </p>
+        <!-- ── Bilan sportif ── -->
+        <div class="dialog-section-title">🏆 Bilan sportif</div>
+        <div class="dialog-record-block">
+          <div class="dialog-record-col record-win">
+            <span class="record-big">{{ dialogFighter.victoires }}</span>
+            <span class="record-label">Victoires</span>
+            <div class="record-breakdown">
+              <span v-if="dialogFighter.victoiresKO">{{ dialogFighter.victoiresKO }} KO</span>
+              <span v-if="dialogFighter.victoiresSub">{{ dialogFighter.victoiresSub }} Sub</span>
+              <span v-if="dialogFighter.victoiresDec">{{ dialogFighter.victoiresDec }} Déc</span>
+            </div>
+          </div>
+          <div class="record-separator">—</div>
+          <div class="dialog-record-col record-loss">
+            <span class="record-big">{{ dialogFighter.defaites }}</span>
+            <span class="record-label">Défaites</span>
+            <div class="record-breakdown">
+              <span v-if="dialogFighter.defaitesKO">{{ dialogFighter.defaitesKO }} KO</span>
+              <span v-if="dialogFighter.defaitesSub">{{ dialogFighter.defaitesSub }} Sub</span>
+              <span v-if="dialogFighter.defaitesDec">{{ dialogFighter.defaitesDec }} Déc</span>
+            </div>
+          </div>
+          <div class="record-separator">—</div>
+          <div class="dialog-record-col record-draw">
+            <span class="record-big">{{ dialogFighter.nuls }}</span>
+            <span class="record-label">Nuls</span>
+          </div>
+        </div>
 
-        <!-- Stats -->
+        <!-- ── Stats composites ── -->
+        <div class="dialog-section-title">📊 Statistiques</div>
         <div class="dialog-stats">
           <div
-            v-for="[label, val] in [
-              ['Frappe debout',     dialogFighter.compStriking],
-              ['Lutte',             dialogFighter.compLutte],
-              ['Grappling',         dialogFighter.compGrappling],
-              ['Conditionnement',   dialogFighter.compConditioning],
-              ['Endurance',         dialogFighter.compStamina],
-              ['Mental',            dialogFighter.compMental],
+            v-for="[icon, label, val] in [
+              ['🥊', 'Frappe debout',   dialogFighter.compStriking],
+              ['🤼', 'Lutte',           dialogFighter.compLutte],
+              ['⛩️',  'Grappling',       dialogFighter.compGrappling],
+              ['🏋️', 'Conditionnement', dialogFighter.compConditioning],
+              ['💪', 'Endurance',       dialogFighter.compStamina],
+              ['🧠', 'Mental',          dialogFighter.compMental],
             ]"
             :key="label"
             class="dialog-stat-row"
           >
+            <span class="dialog-stat-icon">{{ icon }}</span>
             <span class="dialog-stat-label">{{ label }}</span>
             <div class="dialog-stat-track">
-              <div
-                class="dialog-stat-fill"
-                :style="{ width: val + '%', background: statColor(val) }"
-              />
+              <div class="dialog-stat-fill" :style="{ width: val + '%', background: statColor(val) }" />
             </div>
             <span class="dialog-stat-val" :style="{ color: statColor(val) }">{{ val }}</span>
           </div>
         </div>
 
+        <!-- ── Stats détaillées ── -->
+        <div class="dialog-section-title">🔬 Stats détaillées</div>
+        <div class="dialog-raw-stats">
+          <div class="raw-group">
+            <div class="raw-group-title">🥊 Striking</div>
+            <div class="raw-stat-row" v-for="[lbl, v] in [['Frappe', dialogFighter.statFrappeDebout], ['Puissance', dialogFighter.statPuissance], ['Précision', dialogFighter.statPrecision]]" :key="lbl">
+              <span class="raw-label">{{ lbl }}</span>
+              <div class="raw-track"><div class="raw-fill" :style="{ width: (v ?? 0) + '%', background: rawStatColor(v ?? 0) }" /></div>
+              <span class="raw-val" :style="{ color: rawStatColor(v ?? 0) }">{{ v ?? '—' }}</span>
+            </div>
+          </div>
+          <div class="raw-group">
+            <div class="raw-group-title">🤼 Lutte</div>
+            <div class="raw-stat-row" v-for="[lbl, v] in [['Wrestling', dialogFighter.statWrestling], ['Takedown', dialogFighter.statTakedown], ['Anti-TD', dialogFighter.statAntiTakedown]]" :key="lbl">
+              <span class="raw-label">{{ lbl }}</span>
+              <div class="raw-track"><div class="raw-fill" :style="{ width: (v ?? 0) + '%', background: rawStatColor(v ?? 0) }" /></div>
+              <span class="raw-val" :style="{ color: rawStatColor(v ?? 0) }">{{ v ?? '—' }}</span>
+            </div>
+          </div>
+          <div class="raw-group">
+            <div class="raw-group-title">⛩️ Grappling</div>
+            <div class="raw-stat-row" v-for="[lbl, v] in [['Jiu-Jitsu', dialogFighter.statJiuJitsu], ['Submission', dialogFighter.statSubmission], ['Évasion Sub', dialogFighter.statEvasionSub]]" :key="lbl">
+              <span class="raw-label">{{ lbl }}</span>
+              <div class="raw-track"><div class="raw-fill" :style="{ width: (v ?? 0) + '%', background: rawStatColor(v ?? 0) }" /></div>
+              <span class="raw-val" :style="{ color: rawStatColor(v ?? 0) }">{{ v ?? '—' }}</span>
+            </div>
+          </div>
+          <div class="raw-group">
+            <div class="raw-group-title">🏋️ Physique</div>
+            <div class="raw-stat-row" v-for="[lbl, v] in [['Force', dialogFighter.statForce], ['Vitesse', dialogFighter.statVitesse], ['Agilité', dialogFighter.statAgilite], ['Cardio', dialogFighter.statCardio], ['Récupération', dialogFighter.statRecuperation], ['Menton', dialogFighter.statMentoniere]]" :key="lbl">
+              <span class="raw-label">{{ lbl }}</span>
+              <div class="raw-track"><div class="raw-fill" :style="{ width: (v ?? 0) + '%', background: rawStatColor(v ?? 0) }" /></div>
+              <span class="raw-val" :style="{ color: rawStatColor(v ?? 0) }">{{ v ?? '—' }}</span>
+            </div>
+          </div>
+          <div class="raw-group">
+            <div class="raw-group-title">🧠 Mental</div>
+            <div class="raw-stat-row" v-for="[lbl, v] in [['Mental', dialogFighter.statMental], ['Expérience', dialogFighter.statExperience], ['Adaptation', dialogFighter.statAdaptation]]" :key="lbl">
+              <span class="raw-label">{{ lbl }}</span>
+              <div class="raw-track"><div class="raw-fill" :style="{ width: (v ?? 0) + '%', background: rawStatColor(v ?? 0) }" /></div>
+              <span class="raw-val" :style="{ color: rawStatColor(v ?? 0) }">{{ v ?? '—' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Coûts recrutement ── -->
+        <div v-if="dialogMode === 'recruit'" class="dialog-cost-block">
+          <div class="dialog-section-title" style="margin-top:0">💰 Recrutement</div>
+          <div class="dialog-cost-row">
+            <span class="dialog-cost-label">Coût de recrutement</span>
+            <span class="dialog-cost-val">{{ formatPrix(dialogFighter.prixAchat) }}</span>
+          </div>
+          <div class="dialog-cost-row">
+            <span class="dialog-cost-label">Salaire mensuel</span>
+            <span class="dialog-cost-sal">{{ formatPrix(dialogFighter.salaireMensuel) }} / mois</span>
+          </div>
+        </div>
+
       </v-card-text>
-
-      <v-divider style="border-color:rgba(99,102,241,.2)" />
-
-      <!-- Salaire mensuel + prix (mode recrutement) -->
-      <div v-if="dialogMode === 'recruit'" class="dialog-cost-block">
-        <div class="dialog-cost-row">
-          <span class="dialog-cost-label">Coût de recrutement</span>
-          <span class="dialog-cost-val">💰 {{ formatPrix(dialogFighter.prixAchat) }}</span>
-        </div>
-        <div class="dialog-cost-row">
-          <span class="dialog-cost-label">Salaire mensuel</span>
-          <span class="dialog-cost-sal">📅 {{ formatPrix(dialogFighter.salaireMensuel) }}/mois</span>
-        </div>
-      </div>
-
-      <v-divider style="border-color:rgba(99,102,241,.2)" />
 
       <!-- Actions -->
       <v-card-actions class="dialog-actions">
@@ -586,55 +688,153 @@ onMounted(() => {
   background: linear-gradient(160deg, #1e1b4b 0%, #1e293b 100%);
   border: 1px solid rgba(99,102,241,.3);
 }
-.dialog-header {
+.dialog-topbar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 20px 20px 16px;
+  padding: 14px 16px 8px;
+  gap: 10px;
 }
-.dialog-header-left { display: flex; align-items: center; gap: 14px; }
-.dialog-style-icon { font-size: 2.4rem; }
-.dialog-name { font-size: 1.2rem; font-weight: 800; color: #e2e8f0; }
-.dialog-meta { font-size: .82rem; color: #64748b; margin-top: 2px; }
-.dialog-header-right { display: flex; align-items: center; gap: 10px; }
-
-.dialog-body { padding: 20px; }
-.dialog-note-block {
+.dialog-hero {
   display: flex;
-  align-items: baseline;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 20px 18px;
+  gap: 16px;
+}
+.dialog-hero-left { display: flex; align-items: center; gap: 14px; }
+.dialog-style-icon { font-size: 2.8rem; line-height: 1; }
+.dialog-name { font-size: 1.25rem; font-weight: 800; color: #e2e8f0; }
+.dialog-nickname { font-size: .82rem; color: #64748b; margin-top: 3px; font-style: italic; }
+.dialog-overall-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 2px solid;
+  border-radius: 14px;
+  padding: 8px 18px;
+  min-width: 72px;
+}
+.dialog-overall-num { font-size: 2rem; font-weight: 900; line-height: 1; }
+.dialog-overall-label { font-size: .65rem; font-weight: 700; letter-spacing: .1em; opacity: .7; margin-top: 2px; }
+
+.dialog-body { padding: 0 20px 8px; }
+.dialog-section-title {
+  font-size: .7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: #475569;
+  margin: 18px 0 10px;
+}
+
+/* Identité */
+.dialog-identity-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
-  margin-bottom: 16px;
 }
-.dialog-note-label { font-size: .82rem; color: #64748b; }
-.dialog-note-val { font-size: 2rem; font-weight: 900; }
-.dialog-note-sub { font-size: .82rem; color: #475569; }
-
-.dialog-bio {
-  font-size: .85rem;
-  color: #94a3b8;
-  line-height: 1.6;
-  margin-bottom: 20px;
-  padding: 12px 14px;
-  background: rgba(99,102,241,.06);
-  border-left: 3px solid rgba(99,102,241,.4);
-  border-radius: 4px;
-  font-style: italic;
+.dialog-id-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  background: rgba(255,255,255,.04);
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.06);
 }
+.dialog-id-label { font-size: .68rem; color: #475569; }
+.dialog-id-val   { font-size: .88rem; font-weight: 600; color: #e2e8f0; }
 
-.dialog-stats { display: flex; flex-direction: column; gap: 8px; }
-.dialog-stat-row { display: grid; grid-template-columns: 130px 1fr 32px; align-items: center; gap: 10px; }
+/* Bilan sportif */
+.dialog-record-block {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px 12px;
+  background: rgba(255,255,255,.03);
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.06);
+}
+.dialog-record-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  flex: 1;
+}
+.record-big { font-size: 2.2rem; font-weight: 900; line-height: 1; }
+.record-label { font-size: .72rem; color: #64748b; font-weight: 600; }
+.record-breakdown {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.record-breakdown span {
+  font-size: .65rem;
+  color: #475569;
+  background: rgba(255,255,255,.06);
+  border-radius: 6px;
+  padding: 1px 6px;
+}
+.record-win  .record-big { color: #22c55e; }
+.record-loss .record-big { color: #ef4444; }
+.record-draw .record-big { color: #94a3b8; }
+.record-separator { font-size: 1.4rem; color: #1e293b; font-weight: 900; flex: none; }
+
+/* Stats composites */
+.dialog-stats { display: flex; flex-direction: column; gap: 7px; }
+.dialog-stat-row {
+  display: grid;
+  grid-template-columns: 22px 130px 1fr 32px;
+  align-items: center;
+  gap: 8px;
+}
+.dialog-stat-icon { font-size: .95rem; text-align: center; }
 .dialog-stat-label { font-size: .82rem; color: #94a3b8; }
 .dialog-stat-track { height: 6px; background: rgba(255,255,255,.07); border-radius: 6px; overflow: hidden; }
 .dialog-stat-fill { height: 100%; border-radius: 6px; transition: width .5s ease; }
 .dialog-stat-val { font-size: .82rem; font-weight: 700; text-align: right; }
 
-.dialog-actions { padding: 12px 20px 16px; }
-
-/* Bloc coûts dans dialog recrutement */
-.dialog-cost-block {
-  margin: 0 20px 16px;
-  padding: 12px 14px;
+/* Stats détaillées */
+.dialog-raw-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.raw-group {
+  background: rgba(255,255,255,.03);
   border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.05);
+  padding: 10px 12px;
+}
+.raw-group-title {
+  font-size: .7rem;
+  font-weight: 700;
+  color: #6366f1;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.raw-stat-row {
+  display: grid;
+  grid-template-columns: 80px 1fr 26px;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+.raw-label { font-size: .72rem; color: #64748b; }
+.raw-track { height: 4px; background: rgba(255,255,255,.06); border-radius: 4px; overflow: hidden; }
+.raw-fill { height: 100%; border-radius: 4px; }
+.raw-val { font-size: .72rem; font-weight: 700; text-align: right; }
+
+/* Bloc coûts recrutement */
+.dialog-cost-block {
+  margin-top: 4px;
+  padding: 12px 14px;
+  border-radius: 12px;
   background: rgba(245,158,11,.06);
   border: 1px solid rgba(245,158,11,.2);
   display: flex;
@@ -647,6 +847,8 @@ onMounted(() => {
   align-items: center;
 }
 .dialog-cost-label { font-size: .8rem; color: #94a3b8; }
-.dialog-cost-val { font-size: .9rem; font-weight: 700; color: #f59e0b; }
-.dialog-cost-sal { font-size: .85rem; font-weight: 600; color: #94a3b8; }
+.dialog-cost-val   { font-size: .92rem; font-weight: 700; color: #f59e0b; }
+.dialog-cost-sal   { font-size: .85rem; font-weight: 600; color: #94a3b8; }
+
+.dialog-actions { padding: 12px 20px 16px; }
 </style>

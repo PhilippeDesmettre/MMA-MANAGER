@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 
 const props = defineProps({
   authHeaders: { type: Function, required: true },
@@ -28,6 +28,30 @@ const dateJeu = computed(() => {
   return `${MOIS[(props.partie.moisActuel ?? 1) - 1]} ${props.partie.anneeActuelle ?? 1985}`
 })
 
+const selectedAdv = computed(() =>
+  adversaires.value.find(a => a.combattantID === form.value.adversaireID) ?? null
+)
+
+const selectedOrg = computed(() =>
+  organisations.value.find(o => o.organisationID === form.value.organisationID) ?? null
+)
+
+const contratPrevu = computed(() => {
+  const org = selectedOrg.value
+  if (!org) return null
+  const epoque = props.partie.epoque ?? 'NoRules'
+  let nbCombats = 1
+  let exclusif = false
+  if (epoque !== 'NoRules') {
+    if (org.prestige >= 4) {
+      nbCombats = 3; exclusif = true
+    } else if (org.prestige >= 3) {
+      nbCombats = 2; exclusif = epoque === 'Modern'
+    }
+  }
+  return { nbCombats, exclusif }
+})
+
 const PRESTIGE_STARS = (n) => '★'.repeat(n) + '☆'.repeat(5 - n)
 
 function combatPourFighter(combattantID) {
@@ -40,6 +64,10 @@ function tourVersDate(tour) {
   while (mois > 12) { mois -= 12; annee++ }
   const MOIS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc']
   return `${MOIS[mois - 1]} ${annee}`
+}
+
+function formatMoney(n) {
+  return n?.toLocaleString('fr-FR') ?? '0'
 }
 
 // ── Chargement ────────────────────────────────────────────────
@@ -59,14 +87,13 @@ async function charger() {
   }
 }
 
-async function ouvrirPlanification(combattantID) {
-  if (expanded.value === combattantID) { expanded.value = null; return }
-  expanded.value = combattantID
-  form.value = { adversaireID: null, organisationID: null, delaiMois: 1, gameplan: 'Balanced' }
-  adversaires.value = []
+async function chargerAdversaires(combattantID) {
   loadingAdv.value = true
+  adversaires.value = []
+  form.value.adversaireID = null
   try {
-    const res = await fetch(`${API}/combats-planifies/adversaires/${combattantID}`, {
+    const orgParam = form.value.organisationID ? `?organisationID=${form.value.organisationID}` : ''
+    const res = await fetch(`${API}/combats-planifies/adversaires/${combattantID}${orgParam}`, {
       headers: props.authHeaders()
     })
     if (res.ok) adversaires.value = await res.json()
@@ -74,6 +101,21 @@ async function ouvrirPlanification(combattantID) {
     loadingAdv.value = false
   }
 }
+
+async function ouvrirPlanification(combattantID) {
+  if (expanded.value === combattantID) { expanded.value = null; return }
+  expanded.value = combattantID
+  form.value = { adversaireID: null, organisationID: null, delaiMois: 1, gameplan: 'Balanced' }
+  adversaires.value = []
+  await chargerAdversaires(combattantID)
+}
+
+// Recharger les adversaires quand l'organisation change
+watch(() => form.value.organisationID, (newVal, oldVal) => {
+  if (newVal !== oldVal && expanded.value) {
+    chargerAdversaires(expanded.value)
+  }
+})
 
 async function planifier(combattantID) {
   if (!form.value.adversaireID || !form.value.organisationID) return
@@ -127,7 +169,7 @@ onMounted(charger)
         <span class="combat-date">{{ dateJeu }} · Tour {{ partie.tourActuel }}</span>
       </div>
       <div class="combat-header-note">
-        Choisis un combattant, un adversaire et une organisation.
+        Choisis une organisation, puis un adversaire adapté à son niveau.
       </div>
     </div>
 
@@ -220,6 +262,9 @@ onMounted(charger)
                       {{ PRESTIGE_STARS(org.prestige) }}
                     </span>
                   </div>
+                  <div class="org-bourse">
+                    💰 Victoire : {{ formatMoney(org.bourseVictoireMin) }}–{{ formatMoney(org.bourseVictoireMax) }} €
+                  </div>
                   <span class="org-annee">{{ org.anneeCreation }}{{ org.estFictive ? ' · Circuit local' : '' }}</span>
                 </div>
               </div>
@@ -232,7 +277,7 @@ onMounted(charger)
                 <v-progress-circular indeterminate color="indigo" size="20" />
               </div>
               <div v-else-if="adversaires.length === 0" class="plan-empty">
-                Aucun adversaire disponible dans cette catégorie.
+                {{ form.organisationID ? 'Aucun adversaire à ce niveau.' : 'Sélectionne une organisation.' }}
               </div>
               <div v-else class="adv-list">
                 <div
@@ -242,15 +287,59 @@ onMounted(charger)
                   :class="{ selected: form.adversaireID === adv.combattantID }"
                   @click="form.adversaireID = adv.combattantID"
                 >
-                  <span class="adv-name">{{ adv.prenom }} {{ adv.nomFamille }}</span>
+                  <div class="adv-top">
+                    <span class="adv-name">{{ adv.prenom }} {{ adv.nomFamille }}</span>
+                    <span class="adv-note">{{ adv.noteGlobale }}</span>
+                  </div>
                   <div class="adv-meta">
                     <span>{{ adv.stylePrincipal }}</span>
-                    <span class="adv-note">{{ adv.noteGlobale }}</span>
+                    <span class="adv-record" :class="{
+                      'record-positive': adv.victoires > adv.defaites,
+                      'record-negative': adv.victoires < adv.defaites,
+                      'record-neutral': adv.victoires === adv.defaites
+                    }">{{ adv.victoires }}-{{ adv.defaites }}-{{ adv.nuls }}</span>
                   </div>
                 </div>
               </div>
             </div>
 
+          </div>
+
+          <!-- Stats de l'adversaire sélectionné -->
+          <div v-if="selectedAdv" class="adv-stats-panel">
+            <span class="plan-label">📊 Stats de {{ selectedAdv.prenom }} {{ selectedAdv.nomFamille }}</span>
+            <div class="adv-stats-grid">
+              <div class="adv-stat-item">
+                <span class="adv-stat-label">🥊 Striking</span>
+                <div class="stat-bar"><div class="stat-fill strike" :style="{ width: selectedAdv.compStriking + '%' }"></div></div>
+                <span class="adv-stat-val">{{ selectedAdv.compStriking }}</span>
+              </div>
+              <div class="adv-stat-item">
+                <span class="adv-stat-label">🤼 Lutte</span>
+                <div class="stat-bar"><div class="stat-fill lutte" :style="{ width: selectedAdv.compLutte + '%' }"></div></div>
+                <span class="adv-stat-val">{{ selectedAdv.compLutte }}</span>
+              </div>
+              <div class="adv-stat-item">
+                <span class="adv-stat-label">⛩️ Grappling</span>
+                <div class="stat-bar"><div class="stat-fill grappling" :style="{ width: selectedAdv.compGrappling + '%' }"></div></div>
+                <span class="adv-stat-val">{{ selectedAdv.compGrappling }}</span>
+              </div>
+              <div class="adv-stat-item">
+                <span class="adv-stat-label">🏋️ Condition</span>
+                <div class="stat-bar"><div class="stat-fill conditioning" :style="{ width: selectedAdv.compConditioning + '%' }"></div></div>
+                <span class="adv-stat-val">{{ selectedAdv.compConditioning }}</span>
+              </div>
+              <div class="adv-stat-item">
+                <span class="adv-stat-label">💪 Endurance</span>
+                <div class="stat-bar"><div class="stat-fill stamina" :style="{ width: selectedAdv.compStamina + '%' }"></div></div>
+                <span class="adv-stat-val">{{ selectedAdv.compStamina }}</span>
+              </div>
+              <div class="adv-stat-item">
+                <span class="adv-stat-label">🧠 Mental</span>
+                <div class="stat-bar"><div class="stat-fill mental" :style="{ width: selectedAdv.compMental + '%' }"></div></div>
+                <span class="adv-stat-val">{{ selectedAdv.compMental }}</span>
+              </div>
+            </div>
           </div>
 
           <!-- Délai -->
@@ -301,6 +390,23 @@ onMounted(charger)
                 <span class="gameplan-name">Grappling</span>
                 <span class="gameplan-desc">Emmener au sol, chercher la soumission</span>
               </button>
+            </div>
+          </div>
+
+          <!-- Résumé bourse -->
+          <div v-if="selectedOrg" class="bourse-summary">
+            <span class="plan-label">💰 Contrat</span>
+            <div class="bourse-info">
+              <span class="bourse-item win">Victoire : {{ formatMoney(selectedOrg.bourseVictoireMin) }}–{{ formatMoney(selectedOrg.bourseVictoireMax) }} €</span>
+              <span class="bourse-item lose">Défaite : {{ formatMoney(selectedOrg.bourseDefaiteMin) }}–{{ formatMoney(selectedOrg.bourseDefaiteMax) }} €</span>
+            </div>
+            <div v-if="contratPrevu" class="contrat-terms">
+              <span class="contrat-duree">
+                📄 {{ contratPrevu.nbCombats }} combat{{ contratPrevu.nbCombats > 1 ? 's' : '' }}
+              </span>
+              <span class="contrat-exclusif" :class="contratPrevu.exclusif ? 'excl-oui' : 'excl-non'">
+                {{ contratPrevu.exclusif ? '🔒 Exclusif' : '🔓 Non exclusif' }}
+              </span>
             </div>
           </div>
 
@@ -475,14 +581,12 @@ onMounted(charger)
 .org-option-top { display: flex; justify-content: space-between; align-items: center; }
 .org-nom { font-size: .85rem; font-weight: 600; color: #e2e8f0; }
 .org-prestige { font-size: .75rem; color: #f59e0b; letter-spacing: .05em; }
+.org-bourse { font-size: .7rem; color: #22c55e; margin-top: 2px; }
 .org-annee { font-size: .72rem; color: #64748b; margin-top: 2px; display: block; }
 
 /* Adversaire */
 .adv-list { display: flex; flex-direction: column; gap: 5px; max-height: 240px; overflow-y: auto; }
 .adv-option {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   padding: 8px 12px;
   border-radius: 10px;
   border: 1px solid rgba(255,255,255,.07);
@@ -492,9 +596,106 @@ onMounted(charger)
 }
 .adv-option:hover { background: rgba(99,102,241,.1); border-color: rgba(99,102,241,.3); }
 .adv-option.selected { background: rgba(99,102,241,.2); border-color: #6366f1; }
+.adv-top { display: flex; align-items: center; justify-content: space-between; }
 .adv-name { font-size: .85rem; font-weight: 600; color: #e2e8f0; }
-.adv-meta { display: flex; align-items: center; gap: 8px; font-size: .75rem; color: #64748b; }
-.adv-note { font-weight: 700; color: #a5b4fc; }
+.adv-meta { display: flex; align-items: center; justify-content: space-between; font-size: .75rem; color: #64748b; margin-top: 2px; }
+.adv-note { font-weight: 700; color: #a5b4fc; font-size: .85rem; }
+.adv-record {
+  font-size: .7rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 8px;
+}
+
+/* Adversaire stats panel */
+.adv-stats-panel {
+  padding: 12px 14px;
+  background: rgba(99,102,241,.06);
+  border: 1px solid rgba(99,102,241,.15);
+  border-radius: 12px;
+}
+.adv-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+@media (max-width: 600px) {
+  .adv-stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+.adv-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.adv-stat-label {
+  font-size: .68rem;
+  color: #94a3b8;
+  min-width: 72px;
+}
+.stat-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255,255,255,.08);
+  overflow: hidden;
+}
+.stat-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width .3s ease;
+}
+.stat-fill.strike       { background: #ef4444; }
+.stat-fill.lutte        { background: #f97316; }
+.stat-fill.grappling    { background: #6366f1; }
+.stat-fill.conditioning { background: #22c55e; }
+.stat-fill.stamina      { background: #eab308; }
+.stat-fill.mental       { background: #a855f7; }
+.adv-stat-val {
+  font-size: .72rem;
+  font-weight: 700;
+  color: #a5b4fc;
+  min-width: 20px;
+  text-align: right;
+}
+
+/* Bourse summary */
+.bourse-summary {
+  padding: 10px 14px;
+  background: rgba(34,197,94,.06);
+  border: 1px solid rgba(34,197,94,.15);
+  border-radius: 12px;
+}
+.bourse-info {
+  display: flex;
+  gap: 20px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+.bourse-item {
+  font-size: .82rem;
+  font-weight: 600;
+}
+.bourse-item.win  { color: #22c55e; }
+.bourse-item.lose { color: #f97316; }
+.contrat-terms {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+.contrat-duree {
+  font-size: .78rem;
+  color: #94a3b8;
+}
+.contrat-exclusif {
+  font-size: .78rem;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 8px;
+}
+.excl-oui { background: rgba(239,68,68,.15); color: #f87171; }
+.excl-non { background: rgba(34,197,94,.12); color: #4ade80; }
 
 /* Délai */
 .plan-delai { display: flex; flex-direction: column; gap: 8px; }
