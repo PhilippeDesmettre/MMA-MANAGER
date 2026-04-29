@@ -294,6 +294,43 @@ using (var scope = app.Services.CreateScope())
             ALTER TABLE EntrainementPlanifie ADD StaffPartieID INT NULL REFERENCES StaffPartie(StaffPartieID) ON DELETE NO ACTION;
     """);
 
+    // Colonnes physiques sur Combattant (ajoutées si absentes)
+    db.Database.ExecuteSqlRaw("""
+        IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Combattant') AND name = 'TailleCm')
+            ALTER TABLE Combattant ADD TailleCm SMALLINT NULL;
+    """);
+    db.Database.ExecuteSqlRaw("""
+        IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Combattant') AND name = 'AllongeCm')
+            ALTER TABLE Combattant ADD AllongeCm SMALLINT NULL;
+    """);
+    db.Database.ExecuteSqlRaw("""
+        IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Combattant') AND name = 'PoidsReelKg')
+            ALTER TABLE Combattant ADD PoidsReelKg DECIMAL(5,1) NULL;
+    """);
+
+    // Seed des attributs physiques par catégorie — Hommes
+    db.Database.ExecuteSqlRaw("UPDATE Combattant SET TailleCm = 160 + ABS(CHECKSUM(NEWID())) % 13, PoidsReelKg = 54.0 + CAST(ABS(CHECKSUM(NEWID())) % 50 AS DECIMAL(5,1)) / 10.0 WHERE Genre = 'H' AND CategorieID = 1 AND TailleCm IS NULL;");
+    db.Database.ExecuteSqlRaw("UPDATE Combattant SET TailleCm = 162 + ABS(CHECKSUM(NEWID())) % 14, PoidsReelKg = 59.0 + CAST(ABS(CHECKSUM(NEWID())) % 50 AS DECIMAL(5,1)) / 10.0 WHERE Genre = 'H' AND CategorieID = 2 AND TailleCm IS NULL;");
+    db.Database.ExecuteSqlRaw("UPDATE Combattant SET TailleCm = 165 + ABS(CHECKSUM(NEWID())) % 14, PoidsReelKg = 63.0 + CAST(ABS(CHECKSUM(NEWID())) % 60 AS DECIMAL(5,1)) / 10.0 WHERE Genre = 'H' AND CategorieID = 3 AND TailleCm IS NULL;");
+    db.Database.ExecuteSqlRaw("UPDATE Combattant SET TailleCm = 168 + ABS(CHECKSUM(NEWID())) % 13, PoidsReelKg = 68.0 + CAST(ABS(CHECKSUM(NEWID())) % 60 AS DECIMAL(5,1)) / 10.0 WHERE Genre = 'H' AND CategorieID = 4 AND TailleCm IS NULL;");
+    db.Database.ExecuteSqlRaw("UPDATE Combattant SET TailleCm = 170 + ABS(CHECKSUM(NEWID())) % 14, PoidsReelKg = 73.0 + CAST(ABS(CHECKSUM(NEWID())) % 60 AS DECIMAL(5,1)) / 10.0 WHERE Genre = 'H' AND CategorieID = 5 AND TailleCm IS NULL;");
+    db.Database.ExecuteSqlRaw("UPDATE Combattant SET TailleCm = 175 + ABS(CHECKSUM(NEWID())) % 14, PoidsReelKg = 79.0 + CAST(ABS(CHECKSUM(NEWID())) % 60 AS DECIMAL(5,1)) / 10.0 WHERE Genre = 'H' AND CategorieID = 6 AND TailleCm IS NULL;");
+    db.Database.ExecuteSqlRaw("UPDATE Combattant SET TailleCm = 178 + ABS(CHECKSUM(NEWID())) % 16, PoidsReelKg = 85.0 + CAST(ABS(CHECKSUM(NEWID())) % 90 AS DECIMAL(5,1)) / 10.0 WHERE Genre = 'H' AND CategorieID = 7 AND TailleCm IS NULL;");
+    db.Database.ExecuteSqlRaw("UPDATE Combattant SET TailleCm = 183 + ABS(CHECKSUM(NEWID())) % 14, PoidsReelKg = 94.0 + CAST(ABS(CHECKSUM(NEWID())) % 90 AS DECIMAL(5,1)) / 10.0 WHERE Genre = 'H' AND CategorieID = 8 AND TailleCm IS NULL;");
+    db.Database.ExecuteSqlRaw("UPDATE Combattant SET TailleCm = 185 + ABS(CHECKSUM(NEWID())) % 14, PoidsReelKg = 103.0 + CAST(ABS(CHECKSUM(NEWID())) % 180 AS DECIMAL(5,1)) / 10.0 WHERE Genre = 'H' AND CategorieID = 9 AND TailleCm IS NULL;");
+    db.Database.ExecuteSqlRaw("UPDATE Combattant SET TailleCm = 185 + ABS(CHECKSUM(NEWID())) % 19, PoidsReelKg = 115.0 + CAST(ABS(CHECKSUM(NEWID())) % 310 AS DECIMAL(5,1)) / 10.0 WHERE Genre = 'H' AND CategorieID = 10 AND TailleCm IS NULL;");
+
+    // Seed des attributs physiques par catégorie — Femmes
+    db.Database.ExecuteSqlRaw("UPDATE Combattant SET TailleCm = 155 + ABS(CHECKSUM(NEWID())) % 14, PoidsReelKg = 52.0 + CAST(ABS(CHECKSUM(NEWID())) % 60 AS DECIMAL(5,1)) / 10.0 WHERE Genre = 'F' AND CategorieID = 1 AND TailleCm IS NULL;");
+    db.Database.ExecuteSqlRaw("UPDATE Combattant SET TailleCm = 157 + ABS(CHECKSUM(NEWID())) % 14, PoidsReelKg = 57.0 + CAST(ABS(CHECKSUM(NEWID())) % 50 AS DECIMAL(5,1)) / 10.0 WHERE Genre = 'F' AND CategorieID = 2 AND TailleCm IS NULL;");
+    db.Database.ExecuteSqlRaw("UPDATE Combattant SET TailleCm = 160 + ABS(CHECKSUM(NEWID())) % 14, PoidsReelKg = 61.0 + CAST(ABS(CHECKSUM(NEWID())) % 60 AS DECIMAL(5,1)) / 10.0 WHERE Genre = 'F' AND CategorieID = 3 AND TailleCm IS NULL;");
+    db.Database.ExecuteSqlRaw("UPDATE Combattant SET TailleCm = 163 + ABS(CHECKSUM(NEWID())) % 16, PoidsReelKg = 66.0 + CAST(ABS(CHECKSUM(NEWID())) % 50 AS DECIMAL(5,1)) / 10.0 WHERE Genre = 'F' AND CategorieID = 4 AND TailleCm IS NULL;");
+    db.Database.ExecuteSqlRaw("UPDATE Combattant SET TailleCm = 165 + ABS(CHECKSUM(NEWID())) % 14, PoidsReelKg = 70.0 + CAST(ABS(CHECKSUM(NEWID())) % 60 AS DECIMAL(5,1)) / 10.0 WHERE Genre = 'F' AND CategorieID = 5 AND TailleCm IS NULL;");
+    db.Database.ExecuteSqlRaw("UPDATE Combattant SET TailleCm = 168 + ABS(CHECKSUM(NEWID())) % 13, PoidsReelKg = 75.0 + CAST(ABS(CHECKSUM(NEWID())) % 60 AS DECIMAL(5,1)) / 10.0 WHERE Genre = 'F' AND CategorieID = 6 AND TailleCm IS NULL;");
+
+    // AllongeCm basé sur TailleCm (TailleCm - 4 à TailleCm + 8, outliers possibles)
+    db.Database.ExecuteSqlRaw("UPDATE Combattant SET AllongeCm = TailleCm + (-4 + ABS(CHECKSUM(NEWID())) % 13) WHERE AllongeCm IS NULL AND TailleCm IS NOT NULL;");
+
     // Seed staff disponibles (si la table est vide)
     db.Database.ExecuteSqlRaw("""
         IF NOT EXISTS (SELECT 1 FROM StaffDisponible)

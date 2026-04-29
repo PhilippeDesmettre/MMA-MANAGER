@@ -137,7 +137,9 @@ public class CombatsPlanifiesController(MmaContext db) : ControllerBase
             var cat  = cats.TryGetValue(c.CategorieID, out var n) ? n : "Inconnue";
             var sty  = c.StylePrincipalID.HasValue && styles.TryGetValue(c.StylePrincipalID.Value, out var s) ? s : "Polyvalent";
             return new AdversaireDto(
-                c.CombattantID, c.Prenom, c.NomFamille, cat, sty, c.Overall,
+                c.CombattantID, c.Prenom, c.NomFamille, cat, sty,
+                c.TailleCm, c.AllongeCm, c.PoidsReelKg,
+                c.Overall,
                 Moyenne(c.StatFrappeDebout, c.StatPuissance, c.StatPrecision),
                 Moyenne(c.StatWrestling, c.StatTakedown, c.StatAntiTakedown),
                 Moyenne(c.StatJiuJitsu, c.StatSubmission, c.StatEvasionSub),

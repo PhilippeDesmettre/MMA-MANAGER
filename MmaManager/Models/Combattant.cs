@@ -30,6 +30,12 @@ public class Combattant
     public int CategorieID { get; set; }
     public int? StylePrincipalID { get; set; }
 
+    public short? TailleCm { get; set; }
+    public short? AllongeCm { get; set; }
+
+    [Column(TypeName = "decimal(5,1)")]
+    public decimal? PoidsReelKg { get; set; }
+
     public byte StatFrappeDebout { get; set; }
     public byte StatPuissance { get; set; }
     public byte StatPrecision { get; set; }

@@ -35,6 +35,15 @@ public class CombatSimulationService
                              "Kimura", "D'Arce Choke", "Anaconda Choke"];
         string[] gnpDescs = ["ground and pound", "coups au sol"];
 
+        // Avantages physiques (normalisés entre -1 et +1)
+        double allongeN = notre.AllongeCm ?? 180;
+        double allongeA = adverse.AllongeCm ?? 180;
+        double reachAdvantage = Math.Clamp((allongeN - allongeA) / 20.0, -1.0, 1.0);
+
+        double tailleN = notre.TailleCm ?? 178;
+        double tailleA = adverse.TailleCm ?? 178;
+        double heightAdvantage = Math.Clamp((tailleN - tailleA) / 25.0, -1.0, 1.0);
+
         var rounds = new List<RoundDetailDto>();
         bool combatTermine = false;
         bool notreVictoire = false;
@@ -72,6 +81,12 @@ public class CombatSimulationService
             if      (gameplan == "Striking")  { tdN *= 0.25; tdA *= 1.1; }
             else if (gameplan == "Grappling") { tdN = Math.Min(0.90, tdN * 1.8); tdA *= 0.7; }
 
+            // Le fighter plus petit a un léger bonus au takedown (centre de gravité bas)
+            double tdHeightBonusN = -heightAdvantage * 0.05;
+            double tdHeightBonusA =  heightAdvantage * 0.05;
+            tdN = Math.Clamp(tdN + tdHeightBonusN, 0, 0.90);
+            tdA = Math.Clamp(tdA + tdHeightBonusA, 0, 0.90);
+
             bool auSol = rng.NextDouble() < Math.Max(tdN, tdA) * 0.60;
 
             double scoreN, scoreA;
@@ -82,8 +97,11 @@ public class CombatSimulationService
             }
             else
             {
-                scoreN = Striking(notre)   * 0.40 * fatigueMult  + Defense(notre)   * 0.20 + FightIQ(notre)   * 0.20 + notre.StatVitesse   * 0.10 + Bruit();
-                scoreA = Striking(adverse) * 0.40 * fatigueMultA + Defense(adverse) * 0.20 + FightIQ(adverse) * 0.20 + adverse.StatVitesse * 0.10 + Bruit();
+                // L'allonge donne un avantage debout à distance (jab, teep, coups longs)
+                double reachBonusN =  reachAdvantage * 6.0;
+                double reachBonusA = -reachAdvantage * 6.0;
+                scoreN = Striking(notre)   * 0.40 * fatigueMult  + Defense(notre)   * 0.20 + FightIQ(notre)   * 0.18 + notre.StatVitesse   * 0.08 + reachBonusN + Bruit();
+                scoreA = Striking(adverse) * 0.40 * fatigueMultA + Defense(adverse) * 0.20 + FightIQ(adverse) * 0.18 + adverse.StatVitesse * 0.08 + reachBonusA + Bruit();
             }
 
             string gagnantRound;
@@ -120,7 +138,9 @@ public class CombatSimulationService
             double koChance = 0;
             if (!auSol)
             {
-                koChance = strikingAtt * Math.Max(0.15, 1.0 - mentonDefenseur) * 0.55 * koMult;
+                // L'allonge donne un léger avantage au KO debout (coups plus puissants à distance)
+                double reachKoBonus = 1.0 + reachAdvantage * 0.15;
+                koChance = strikingAtt * Math.Max(0.15, 1.0 - mentonDefenseur) * 0.55 * koMult * reachKoBonus;
                 if (Math.Abs(scoreN - scoreA) > 10) koChance *= 1.6;
             }
 

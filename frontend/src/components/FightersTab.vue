@@ -378,6 +378,18 @@ onMounted(() => {
             <span class="dialog-id-label">🥋 Style</span>
             <span class="dialog-id-val">{{ styleIcon(dialogFighter.stylePrincipal) }} {{ dialogFighter.stylePrincipal }}</span>
           </div>
+          <div class="dialog-id-item">
+            <span class="dialog-id-label">📏 Taille</span>
+            <span class="dialog-id-val">{{ dialogFighter.tailleCm ? dialogFighter.tailleCm + ' cm' : '—' }}</span>
+          </div>
+          <div class="dialog-id-item">
+            <span class="dialog-id-label">💪 Allonge</span>
+            <span class="dialog-id-val">{{ dialogFighter.allongeCm ? dialogFighter.allongeCm + ' cm' : '—' }}</span>
+          </div>
+          <div class="dialog-id-item">
+            <span class="dialog-id-label">⚖️ Poids réel</span>
+            <span class="dialog-id-val">{{ dialogFighter.poidsReelKg ? dialogFighter.poidsReelKg + ' kg' : '—' }}</span>
+          </div>
         </div>
 
         <!-- ── Bilan sportif ── -->

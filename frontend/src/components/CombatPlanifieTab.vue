@@ -293,6 +293,9 @@ onMounted(charger)
                   </div>
                   <div class="adv-meta">
                     <span>{{ adv.stylePrincipal }}</span>
+                    <span v-if="adv.tailleCm" class="adversaire-physique">
+                      📏 {{ adv.tailleCm }}cm · 💪 {{ adv.allongeCm }}cm · ⚖️ {{ adv.poidsReelKg }}kg
+                    </span>
                     <span class="adv-record" :class="{
                       'record-positive': adv.victoires > adv.defaites,
                       'record-negative': adv.victoires < adv.defaites,
@@ -600,6 +603,7 @@ onMounted(charger)
 .adv-name { font-size: .85rem; font-weight: 600; color: #e2e8f0; }
 .adv-meta { display: flex; align-items: center; justify-content: space-between; font-size: .75rem; color: #64748b; margin-top: 2px; }
 .adv-note { font-weight: 700; color: #a5b4fc; font-size: .85rem; }
+.adversaire-physique { font-size: .68rem; color: #64748b; }
 .adv-record {
   font-size: .7rem;
   font-weight: 700;
