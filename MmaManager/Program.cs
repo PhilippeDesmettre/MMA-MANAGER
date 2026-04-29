@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using MmaManager.Data;
+using MmaManager.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -43,6 +44,10 @@ builder.Services.AddCors(options =>
     });
 });
 builder.Services.AddOpenApi();
+
+builder.Services.AddScoped<CombatSimulationService>();
+builder.Services.AddScoped<TrainingService>();
+builder.Services.AddScoped<TurnAdvancementService>();
 
 var app = builder.Build();
 
