@@ -219,7 +219,12 @@ onMounted(() => {
                 :style="{ background: catColor(f.categoriePoids) + '22', color: catColor(f.categoriePoids), borderColor: catColor(f.categoriePoids) + '55' }"
               >{{ f.categoriePoids }}</span>
             </div>
-            <div class="fighter-name">{{ f.prenom }} {{ f.nom }}</div>
+            <div class="fighter-name">
+              {{ f.prenom }} {{ f.nom }}
+              <span v-if="f.semainesIndispo > 0" class="injury-badge">
+                🏥 {{ f.blessureZone }} ({{ f.semainesIndispo }} tour{{ f.semainesIndispo > 1 ? 's' : '' }})
+              </span>
+            </div>
             <div class="fighter-meta">
               {{ f.nationalite }} · {{ f.age }} ans · {{ f.stylePrincipal }}
             </div>
@@ -375,6 +380,13 @@ onMounted(() => {
       </div>
 
       <v-card-text class="dialog-body">
+
+        <!-- ── Alerte blessure ── -->
+        <div v-if="dialogFighter.semainesIndispo > 0" class="dialog-injury-alert">
+          🏥 Blessé : {{ dialogFighter.blessureZone }}
+          (gravité {{ dialogFighter.blessureGravite }}/3)
+          — Indisponible {{ dialogFighter.semainesIndispo }} tour{{ dialogFighter.semainesIndispo > 1 ? 's' : '' }}
+        </div>
 
         <!-- ── Identité ── -->
         <div class="dialog-section-title">👤 Identité</div>
@@ -551,6 +563,25 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.injury-badge {
+  font-size: .7rem;
+  color: #ef4444;
+  background: rgba(239,68,68,.1);
+  padding: 2px 8px;
+  border-radius: 8px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+.dialog-injury-alert {
+  background: rgba(239,68,68,.12);
+  color: #ef4444;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: .85rem;
+  margin-bottom: 12px;
+  border-left: 3px solid #ef4444;
+}
+
 /* ── Sub-navigation ──────────────────────────────────────────────── */
 .fighters-subnav {
   display: flex;

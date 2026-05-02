@@ -102,5 +102,8 @@ public record CombatSimuleDto(
     int    RoundFin,
     string Details,
     decimal BourseGagnee,
-    IReadOnlyList<RoundDetailDto> Rounds
+    IReadOnlyList<RoundDetailDto> Rounds,
+    byte?   BlessureGravite,
+    string? BlessureZone,
+    short?  SemainesIndispo
 );

@@ -192,14 +192,17 @@ onMounted(charger)
         <div
           class="fighter-row-main"
           :class="{ 'is-expanded': expanded === fighter.combattantID }"
-          @click="!combatPourFighter(fighter.combattantID) && ouvrirPlanification(fighter.combattantID)"
-          :style="combatPourFighter(fighter.combattantID) ? 'cursor:default' : 'cursor:pointer'"
+          @click="!combatPourFighter(fighter.combattantID) && !fighter.semainesIndispo && ouvrirPlanification(fighter.combattantID)"
+          :style="combatPourFighter(fighter.combattantID) || fighter.semainesIndispo ? 'cursor:default' : 'cursor:pointer'"
         >
           <div class="fighter-info">
             <div class="fighter-name-row">
               <span class="fighter-name">{{ fighter.prenom }} {{ fighter.nom }}</span>
               <span class="fighter-record" :class="recordClass(fighter)">
                 {{ fighter.victoires }}-{{ fighter.defaites }}-{{ fighter.nuls }}
+              </span>
+              <span v-if="fighter.semainesIndispo > 0" class="injury-badge">
+                🏥 {{ fighter.blessureZone }} ({{ fighter.semainesIndispo }}t)
               </span>
             </div>
             <span class="fighter-meta">{{ fighter.categoriePoids }} · {{ fighter.stylePrincipal }} · Cote {{ fighter.noteGlobale }}</span>
@@ -434,6 +437,15 @@ onMounted(charger)
 
 <style scoped>
 .combat-tab { max-width: 900px; margin: 0 auto; }
+
+.injury-badge {
+  font-size: .68rem;
+  color: #ef4444;
+  background: rgba(239,68,68,.1);
+  padding: 1px 7px;
+  border-radius: 8px;
+  margin-left: 6px;
+}
 
 /* Header */
 .combat-header {

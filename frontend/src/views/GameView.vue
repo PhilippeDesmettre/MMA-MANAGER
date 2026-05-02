@@ -496,6 +496,10 @@ function formatMoney(val) {
                 +{{ formatMoney(c.bourseGagnee) }} €
               </span>
             </div>
+            <!-- Blessure -->
+            <div v-if="c.blessureZone" class="combat-injury">
+              🏥 Blessure : {{ c.blessureZone }} — Indisponible {{ c.semainesIndispo }} tour{{ c.semainesIndispo > 1 ? 's' : '' }}
+            </div>
           </div>
 
           <!-- Résumé financier -->
@@ -1017,6 +1021,14 @@ function formatMoney(val) {
 .bourse-win  { color: #22c55e; }
 .bourse-draw { color: #f59e0b; }
 .bourse-loss { color: #f97316; }
+.combat-injury {
+  color: #ef4444;
+  font-size: .82rem;
+  margin-top: 6px;
+  padding: 4px 8px;
+  background: rgba(239,68,68,.08);
+  border-radius: 6px;
+}
 
 /* ── Résumé financier ─────────────────────────────────────── */
 .finance-summary {

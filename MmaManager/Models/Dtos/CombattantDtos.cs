@@ -83,5 +83,9 @@ public record CombattantDetailDto(
     int     StatMentoniere,
     int     StatMental,
     int     StatExperience,
-    int     StatAdaptation
+    int     StatAdaptation,
+    // Blessure
+    byte    BlessureGravite,
+    string? BlessureZone,
+    short   SemainesIndispo
 );

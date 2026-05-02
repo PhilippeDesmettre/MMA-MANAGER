@@ -272,7 +272,10 @@ public class CombattantsController(MmaContext db) : ControllerBase
             c.StatMentoniere,
             c.StatMental,
             c.StatExperience,
-            c.StatAdaptation
+            c.StatAdaptation,
+            c.BlessureGravite,
+            c.BlessureZone,
+            c.SemainesIndispo
         );
     }
 }

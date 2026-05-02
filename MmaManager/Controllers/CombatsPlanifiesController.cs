@@ -164,6 +164,11 @@ public class CombatsPlanifiesController(MmaContext db) : ControllerBase
             .AnyAsync(cp => cp.PartieID == partie.PartieID && cp.CombattantID == req.CombattantID);
         if (!dansEcurie) return BadRequest("Ce combattant n'est pas dans ton écurie.");
 
+        var combattant = await db.Combattants.FindAsync(req.CombattantID);
+        if (combattant is null) return BadRequest("Combattant introuvable.");
+        if (combattant.SemainesIndispo > 0)
+            return BadRequest($"{combattant.Prenom} {combattant.NomFamille} est blessé ({combattant.BlessureZone}) et indisponible pendant encore {combattant.SemainesIndispo} tour(s).");
+
         // Vérifier que l'adversaire existe
         var adversaire = await db.Combattants.FindAsync(req.AdversaireID);
         if (adversaire is null) return BadRequest("Adversaire introuvable.");

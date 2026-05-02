@@ -74,6 +74,20 @@ public class TurnAdvancementService(
                 }
             }
 
+            // Appliquer les blessures de combat
+            if (sim.BlessureNotre is { } blessN)
+            {
+                notre.BlessureGravite  = blessN.Gravite;
+                notre.BlessureZone     = blessN.Zone;
+                notre.SemainesIndispo  = blessN.SemainesIndispo;
+            }
+            if (sim.BlessureAdverse is { } blessA)
+            {
+                adverse.BlessureGravite = blessA.Gravite;
+                adverse.BlessureZone    = blessA.Zone;
+                adverse.SemainesIndispo = blessA.SemainesIndispo;
+            }
+
             db.ResultatsCombat.Add(new ResultatCombatPartie
             {
                 PartieID        = partie.PartieID,
@@ -129,7 +143,10 @@ public class TurnAdvancementService(
                 sim.Round,
                 sim.Details,
                 bourse,
-                sim.Rounds
+                sim.Rounds,
+                sim.BlessureNotre?.Gravite,
+                sim.BlessureNotre?.Zone,
+                sim.BlessureNotre?.SemainesIndispo
             ));
         }
 
@@ -147,6 +164,15 @@ public class TurnAdvancementService(
         foreach (var ep in planifies)
         {
             var c = ep.Combattant!;
+
+            if (c.SemainesIndispo > 0)
+            {
+                resultats.Add(new CombattantResultatDto(
+                    c.CombattantID, c.Prenom, c.NomFamille,
+                    "Blessé", Array.Empty<GainStatDto>()));
+                continue;
+            }
+
             CoachStats stats;
 
             if (ep.StaffPartie?.StaffDisponible is { } sd)
@@ -165,6 +191,16 @@ public class TurnAdvancementService(
             }
 
             var gains = trainingService.AppliquerEntrainement(c, ep.TypeEntrainement, stats, rng);
+
+            // Risque de blessure à l'entraînement (3%)
+            if (rng.NextDouble() < 0.03)
+            {
+                string[] zones = ["Genou", "Épaule", "Dos", "Cheville", "Poignet", "Tibia"];
+                c.BlessureGravite  = 1;
+                c.BlessureZone     = zones[rng.Next(zones.Length)];
+                c.SemainesIndispo  = (short)(1 + rng.Next(2));
+            }
+
             resultats.Add(new CombattantResultatDto(
                 c.CombattantID,
                 c.Prenom,
@@ -176,12 +212,27 @@ public class TurnAdvancementService(
 
         db.EntrainementsPlanifies.RemoveRange(planifies);
 
-        // ── ÉTAPE 3 : Finances ────────────────────────────────────
+        // ── ÉTAPE 2b : Guérison des blessures ─────────────────────
         var ecurieCombattants = await db.CombattantsPartie
             .Where(cp => cp.PartieID == partie.PartieID)
             .Include(cp => cp.Combattant)
             .ToListAsync();
 
+        foreach (var cp in ecurieCombattants)
+        {
+            var cb = cp.Combattant!;
+            if (cb.SemainesIndispo > 0)
+            {
+                cb.SemainesIndispo--;
+                if (cb.SemainesIndispo == 0)
+                {
+                    cb.BlessureGravite = 0;
+                    cb.BlessureZone    = null;
+                }
+            }
+        }
+
+        // ── ÉTAPE 3 : Finances ────────────────────────────────────
         var staffEmbauches = await db.StaffParties
             .Where(sp => sp.PartieID == partie.PartieID)
             .Include(sp => sp.StaffDisponible)

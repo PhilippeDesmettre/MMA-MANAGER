@@ -3,13 +3,20 @@ using MmaManager.Models.Dtos;
 
 namespace MmaManager.Services;
 
+public record BlessureCombat(
+    byte    Gravite,          // 1=légère, 2=modérée, 3=grave
+    string? Zone,             // "Tête", "Main", "Genou"…
+    short   SemainesIndispo); // tours d'indisponibilité
+
 public record SimResultat(
     bool   EstVictoire,
     bool   EstNul,
     string Methode,
     byte   Round,
     string Details,
-    List<RoundDetailDto> Rounds);
+    List<RoundDetailDto> Rounds,
+    BlessureCombat? BlessureNotre,
+    BlessureCombat? BlessureAdverse);
 
 public class CombatSimulationService
 {
@@ -348,7 +355,73 @@ public class CombatSimulationService
             }
         }
 
-        return new SimResultat(notreVictoire, estNul, methodeFinale, roundFin, detailsFinal, rounds);
+        bool notrePerdant   = !notreVictoire && !estNul;
+        bool adversePerdant =  notreVictoire && !estNul;
+        var blessureNotre   = GenererBlessure(notre,   dommagesN, methodeFinale, roundFin, notrePerdant,   rng);
+        var blessureAdverse = GenererBlessure(adverse, dommagesA, methodeFinale, roundFin, adversePerdant, rng);
+
+        return new SimResultat(notreVictoire, estNul, methodeFinale, roundFin, detailsFinal, rounds,
+                               blessureNotre, blessureAdverse);
+    }
+
+    // ── Blessures post-combat ────────────────────────────────────
+
+    private static BlessureCombat? GenererBlessure(
+        Combattant combattant, double dommages, string methode,
+        byte roundFin, bool estPerdant, Random rng)
+    {
+        double probBlessure;
+
+        if (estPerdant && (methode == "KO" || methode == "TKO"))
+            probBlessure = 0.80;
+        else if (estPerdant && methode == "Soumission")
+            probBlessure = 0.40;
+        else
+        {
+            probBlessure = dommages / 200.0;
+            if (!estPerdant) probBlessure *= 0.4;
+        }
+
+        probBlessure *= Math.Max(0.5, 1.0 - combattant.StatRecuperation / 200.0);
+
+        if (rng.NextDouble() >= probBlessure) return null;
+
+        string zone;
+        byte   gravite;
+        short  semainesIndispo;
+
+        if (estPerdant && (methode == "KO" || methode == "TKO"))
+        {
+            string[] zones = ["Tête", "Tête", "Tête", "Arcade", "Nez", "Mâchoire"];
+            zone            = zones[rng.Next(zones.Length)];
+            gravite         = (byte)(2 + rng.Next(2));
+            semainesIndispo = gravite == 3
+                ? (short)(4 + rng.Next(5))
+                : (short)(2 + rng.Next(3));
+        }
+        else if (estPerdant && methode == "Soumission")
+        {
+            string[] zones = ["Épaule", "Coude", "Genou", "Cheville", "Poignet", "Cou"];
+            zone            = zones[rng.Next(zones.Length)];
+            gravite         = (byte)(1 + rng.Next(3));
+            semainesIndispo = gravite switch
+            {
+                3 => (short)(5 + rng.Next(4)),
+                2 => (short)(3 + rng.Next(3)),
+                _ => (short)(1 + rng.Next(2))
+            };
+        }
+        else
+        {
+            string[] zones = ["Main", "Pied", "Côtes", "Arcade", "Genou", "Tibia"];
+            zone            = zones[rng.Next(zones.Length)];
+            gravite         = (byte)(1 + rng.Next(2));
+            semainesIndispo = gravite == 2
+                ? (short)(2 + rng.Next(2))
+                : (short)(1 + rng.Next(2));
+        }
+
+        return new BlessureCombat(gravite, zone, semainesIndispo);
     }
 
     // ── Transition de phase ──────────────────────────────────────
