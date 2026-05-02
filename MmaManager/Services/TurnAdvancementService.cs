@@ -44,7 +44,7 @@ public class TurnAdvancementService(
             var adverse = combat.Adversaire!;
             var orgNom  = combat.Organisation!.Nom;
 
-            var sim = combatService.SimulerCombat(notre, adverse, orgNom, combat.Gameplan, rng);
+            var sim = combatService.SimulerCombat(notre, adverse, orgNom, combat.Gameplan, rng, isTitleFight: false);
 
             if (sim.EstNul)
             {
