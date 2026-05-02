@@ -92,5 +92,7 @@ public record TourResultatDto(
     decimal SoldeAvant,
     decimal SoldeApres,
     decimal DepensesTotales,
-    bool   EstGameOver
+    bool   EstGameOver,
+    int    PrestigeEcurie,
+    bool   PrestigeAugmente
 );

@@ -56,7 +56,8 @@ public class CombatsPlanifiesController(MmaContext db) : ControllerBase
         if (partie is null) return NotFound();
 
         var orgs = await db.CombatOrganisations
-            .Where(o => o.AnneeCreation <= partie.AnneeActuelle)
+            .Where(o => o.AnneeCreation <= partie.AnneeActuelle
+                     && o.Prestige <= partie.PrestigeEcurie + 1)
             .OrderByDescending(o => o.Prestige)
             .ThenBy(o => o.Nom)
             .AsNoTracking()

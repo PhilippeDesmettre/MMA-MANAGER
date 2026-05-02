@@ -22,6 +22,7 @@ const tourResultat        = ref(null)   // TourResultatDto | null
 const dialogResultat      = ref(false)
 const dialogTransition    = ref(false)  // dialog changement d'ère
 const dialogCombats       = ref(false)  // dialog résultats combats
+const dialogPrestige      = ref(false)  // dialog prestige de l'écurie
 const dialogGameOver      = ref(false)  // dialog game over
 
 const EPOQUES = {
@@ -128,6 +129,8 @@ function fermerCombats() {
     dialogTransition.value = true
   } else if (tourResultat.value?.resultats?.length > 0) {
     dialogResultat.value = true
+  } else if (tourResultat.value?.prestigeAugmente) {
+    dialogPrestige.value = true
   } else if (tourResultat.value?.estGameOver) {
     dialogGameOver.value = true
   } else {
@@ -139,6 +142,8 @@ function fermerTransition() {
   dialogTransition.value = false
   if (tourResultat.value?.resultats?.length > 0) {
     dialogResultat.value = true
+  } else if (tourResultat.value?.prestigeAugmente) {
+    dialogPrestige.value = true
   } else if (tourResultat.value?.estGameOver) {
     dialogGameOver.value = true
   } else {
@@ -148,6 +153,17 @@ function fermerTransition() {
 
 function fermerResultat() {
   dialogResultat.value = false
+  if (tourResultat.value?.prestigeAugmente) {
+    dialogPrestige.value = true
+  } else if (tourResultat.value?.estGameOver) {
+    dialogGameOver.value = true
+  } else {
+    tourResultat.value = null
+  }
+}
+
+function fermerPrestige() {
+  dialogPrestige.value = false
   if (tourResultat.value?.estGameOver) {
     dialogGameOver.value = true
   } else {
@@ -212,6 +228,9 @@ function formatMoney(val) {
           </span>
           <span v-if="partie" class="game-date-badge">
             📅 {{ dateJeu }} · Tour {{ partie.tourActuel }}
+          </span>
+          <span v-if="partie" class="game-prestige-badge">
+            {{ '⭐'.repeat(partie.prestigeEcurie) }}
           </span>
         </div>
         <div class="game-topbar-right">
@@ -358,7 +377,9 @@ function formatMoney(val) {
         <div v-else-if="tab === 'fighters'">
           <FightersTab
             :auth-headers="authHeaders"
+            :partie="partie"
             @ecurie-updated="ecurieCount = $event"
+            @argent-updated="partie.argent = $event"
           />
         </div>
 
@@ -599,6 +620,31 @@ function formatMoney(val) {
       </v-card>
     </v-dialog>
 
+    <!-- ── Dialog Prestige de l'écurie ──────────────────────────── -->
+    <v-dialog v-model="dialogPrestige" max-width="480" persistent>
+      <v-card class="prestige-dialog" rounded="xl" elevation="24">
+        <div class="prestige-header">
+          <div class="prestige-stars">
+            {{ '⭐'.repeat(tourResultat?.prestigeEcurie ?? 1) }}
+          </div>
+          <div class="prestige-label">Prestige de l'écurie</div>
+          <div class="prestige-niveau">Niveau {{ tourResultat?.prestigeEcurie }}</div>
+        </div>
+        <v-card-text class="prestige-body">
+          <p>Ton écurie gagne en réputation ! De nouveaux combattants et organisations vont s'ouvrir à toi.</p>
+          <div class="prestige-unlock" v-if="tourResultat?.prestigeEcurie >= 2">
+            <span class="prestige-unlock-icon">🔓</span>
+            <span>Accès à des combattants de niveau supérieur et à des organisations plus prestigieuses.</span>
+          </div>
+        </v-card-text>
+        <v-card-actions style="justify-content:center;padding-bottom:24px">
+          <v-btn variant="flat" color="amber-darken-2" rounded="pill" size="large" @click="fermerPrestige">
+            Super, continuons !
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <!-- ── Dialog Game Over ──────────────────────────────────── -->
     <v-dialog v-model="dialogGameOver" max-width="480" persistent>
       <v-card class="gameover-dialog" rounded="xl" elevation="24">
@@ -674,6 +720,15 @@ function formatMoney(val) {
   border: 1px solid rgba(148,163,184,.2);
   background: rgba(148,163,184,.06);
   margin-left: 6px;
+}
+.game-prestige-badge {
+  font-size: .8rem;
+  padding: 3px 8px;
+  border-radius: 20px;
+  border: 1px solid rgba(251,191,36,.3);
+  background: rgba(251,191,36,.08);
+  margin-left: 6px;
+  letter-spacing: 1px;
 }
 
 /* ── Dialog transition d'ère ─────────────────────────────── */
@@ -998,6 +1053,54 @@ function formatMoney(val) {
   color: #e2e8f0;
   font-weight: 700;
 }
+
+/* ── Prestige dialog ──────────────────────────────────────── */
+.prestige-dialog {
+  background: linear-gradient(160deg, #1c1a05 0%, #0f172a 100%) !important;
+  border: 1px solid rgba(251,191,36,.4);
+  text-align: center;
+}
+.prestige-header {
+  padding: 32px 24px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.prestige-stars { font-size: 2rem; letter-spacing: 4px; }
+.prestige-label {
+  font-size: .8rem;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: #f59e0b;
+  margin-top: 4px;
+}
+.prestige-niveau {
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: #fbbf24;
+}
+.prestige-body {
+  padding: 8px 28px 16px;
+  color: #94a3b8;
+  font-size: .88rem;
+  line-height: 1.7;
+}
+.prestige-body p { margin-bottom: 8px; }
+.prestige-unlock {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(251,191,36,.08);
+  border: 1px solid rgba(251,191,36,.2);
+  color: #e2e8f0;
+  font-size: .84rem;
+  text-align: left;
+}
+.prestige-unlock-icon { font-size: 1.1rem; flex-shrink: 0; }
 
 /* ── Game Over ────────────────────────────────────────────── */
 .gameover-dialog {

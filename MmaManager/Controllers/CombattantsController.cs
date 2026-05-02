@@ -37,9 +37,31 @@ public class CombattantsController(MmaContext db) : ControllerBase
 
         var references = await LoadReferenceData();
 
-        var combattants = await db.Combattants
+        int prestige = partie.PrestigeEcurie;
+
+        int overallMax = prestige switch
+        {
+            1 => 55,
+            2 => 65,
+            3 => 75,
+            4 => 85,
+            _ => 99
+        };
+
+        IQueryable<Combattant> query = db.Combattants
             .AsNoTracking()
-            .Where(c => !recrutes.Contains(c.CombattantID))
+            .Where(c => !recrutes.Contains(c.CombattantID) && c.Overall <= overallMax);
+
+        if (prestige <= 2)
+        {
+            var entraineur = await db.EntraineursJoueur
+                .AsNoTracking()
+                .FirstOrDefaultAsync(e => e.PartieID == partie.PartieID);
+            if (entraineur is not null)
+                query = query.Where(c => c.PaysOrigineID == entraineur.PaysResidenceID);
+        }
+
+        var combattants = await query
             .OrderBy(c => c.NomFamille)
             .ThenBy(c => c.Prenom)
             .ToListAsync();
@@ -113,7 +135,7 @@ public class CombattantsController(MmaContext db) : ControllerBase
         });
         await db.SaveChangesAsync();
 
-        return Ok();
+        return Ok(new { nouveauSolde = partie.Argent });
     }
 
     private async Task<Partie?> PartieActive() =>

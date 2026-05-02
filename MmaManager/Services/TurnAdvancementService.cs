@@ -232,6 +232,26 @@ public class TurnAdvancementService(
                 "Conor McGregor, Jon Jones, Khabib Nurmagomedov... Le MMA est devenu un sport planétaire.";
         }
 
+        // ── ÉTAPE 5 : Prestige de l'écurie ───────────────────────
+        bool prestigeAugmente = false;
+        if (!estGameOver && partie.PrestigeEcurie < 5)
+        {
+            int totalVictoires = ecurieCombattants.Sum(cp => cp.Combattant!.Victoires);
+            int seuil = partie.PrestigeEcurie switch
+            {
+                1 => 3,
+                2 => 8,
+                3 => 20,
+                4 => 40,
+                _ => int.MaxValue
+            };
+            if (totalVictoires >= seuil)
+            {
+                partie.PrestigeEcurie++;
+                prestigeAugmente = true;
+            }
+        }
+
         await db.SaveChangesAsync();
 
         return new TourResultatDto(
@@ -246,7 +266,9 @@ public class TurnAdvancementService(
             soldeAvant,
             partie.Argent,
             depenses,
-            estGameOver
+            estGameOver,
+            partie.PrestigeEcurie,
+            prestigeAugmente
         );
     }
 }

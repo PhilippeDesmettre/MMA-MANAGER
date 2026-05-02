@@ -32,5 +32,6 @@ public record PartieDto(
     int      TourActuel,
     int      MoisActuel,
     int      AnneeActuelle,
+    int      PrestigeEcurie,
     EntraineurDto Entraineur
 );

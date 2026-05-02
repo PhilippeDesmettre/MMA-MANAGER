@@ -6,13 +6,14 @@ using Microsoft.EntityFrameworkCore;
 using MmaManager.Data;
 using MmaManager.Models;
 using MmaManager.Models.Dtos;
+using MmaManager.Services;
 
 namespace MmaManager.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class PartieController(MmaContext db) : ControllerBase
+public class PartieController(MmaContext db, ProspectGenerationService prospectService) : ControllerBase
 {
     private int CurrentUserId =>
         int.Parse(User.FindFirstValue(JwtRegisteredClaimNames.Sub)
@@ -114,6 +115,9 @@ public class PartieController(MmaContext db) : ControllerBase
         db.Agents.Add(agent);
 
         await db.SaveChangesAsync();
+
+        await prospectService.GenererProspects(req.PaysResidenceID, anneeDepart);
+        await prospectService.GenererOrganisationsLocales(req.PaysResidenceID, anneeDepart);
 
         // Recharger avec navigations
         partie.Entraineur = entraineur;
@@ -251,6 +255,7 @@ public class PartieController(MmaContext db) : ControllerBase
             p.TourActuel,
             p.MoisActuel,
             p.AnneeActuelle,
+            p.PrestigeEcurie,
             new EntraineurDto(
                 e.Prenom,
                 e.Nom,

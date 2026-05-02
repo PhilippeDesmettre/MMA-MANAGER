@@ -2,9 +2,10 @@
 import { ref, computed, onMounted } from 'vue'
 
 const props = defineProps({
-  authHeaders: { type: Function, required: true }
+  authHeaders: { type: Function, required: true },
+  partie:      { type: Object, default: null }
 })
-const emit = defineEmits(['ecurie-updated'])
+const emit = defineEmits(['ecurie-updated', 'argent-updated'])
 
 const API = 'http://localhost:5219/api'
 
@@ -100,6 +101,8 @@ async function recruter(id) {
       headers: props.authHeaders()
     })
     if (res.ok) {
+      const data = await res.json()
+      emit('argent-updated', data.nouveauSolde)
       const idx = disponibles.value.findIndex(f => f.combattantID === id)
       if (idx !== -1) disponibles.value.splice(idx, 1)
       await loadEcurie()
@@ -249,6 +252,20 @@ onMounted(() => {
 
   <!-- ── Recruter ───────────────────────────────────────────────── -->
   <div v-if="subTab === 'recruter'">
+
+    <!-- Alerte prestige faible -->
+    <v-alert
+      v-if="props.partie && props.partie.prestigeEcurie <= 2"
+      type="info"
+      variant="tonal"
+      rounded="lg"
+      class="mb-3"
+      style="font-size:.82rem"
+    >
+      <strong>Recrutement local</strong> — Ton écurie est au niveau {{ props.partie.prestigeEcurie }}.
+      Seuls les combattants du même pays que ton entraîneur et de niveau ≤ {{ props.partie.prestigeEcurie === 1 ? 55 : 65 }} sont disponibles.
+      Remporte des victoires pour augmenter le prestige et accéder à des talents internationaux.
+    </v-alert>
 
     <!-- Filtre catégorie -->
     <div class="cat-filter">

@@ -48,6 +48,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddScoped<CombatSimulationService>();
 builder.Services.AddScoped<TrainingService>();
 builder.Services.AddScoped<TurnAdvancementService>();
+builder.Services.AddScoped<ProspectGenerationService>();
 
 var app = builder.Build();
 
@@ -136,6 +137,10 @@ using (var scope = app.Services.CreateScope())
     db.Database.ExecuteSqlRaw("""
         IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Partie') AND name = 'AnneeActuelle')
             ALTER TABLE Partie ADD AnneeActuelle INT NOT NULL DEFAULT 1985;
+    """);
+    db.Database.ExecuteSqlRaw("""
+        IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Partie') AND name = 'PrestigeEcurie')
+            ALTER TABLE Partie ADD PrestigeEcurie INT NOT NULL DEFAULT 1;
     """);
 
     // Table Agent (joueur peut être son propre agent)
@@ -330,6 +335,9 @@ using (var scope = app.Services.CreateScope())
 
     // AllongeCm basé sur TailleCm (TailleCm - 4 à TailleCm + 8, outliers possibles)
     db.Database.ExecuteSqlRaw("UPDATE Combattant SET AllongeCm = TailleCm + (-4 + ABS(CHECKSUM(NEWID())) % 13) WHERE AllongeCm IS NULL AND TailleCm IS NOT NULL;");
+
+    // NOTE : les prospects sont générés à la création de chaque partie (PartieController.Create)
+    //        via ProspectGenerationService, pas au démarrage de l'app.
 
     // Seed staff disponibles (si la table est vide)
     db.Database.ExecuteSqlRaw("""
