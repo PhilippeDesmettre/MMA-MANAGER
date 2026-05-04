@@ -210,6 +210,12 @@ using (var scope = app.Services.CreateScope())
             ALTER TABLE CombatPlanifie ADD Gameplan NVARCHAR(20) NOT NULL DEFAULT 'Balanced';
     """);
 
+    // Étendre Gameplan à NVARCHAR(200) pour le format JSON multi-axes
+    db.Database.ExecuteSqlRaw("""
+        IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('CombatPlanifie') AND name = 'Gameplan' AND max_length < 400)
+            ALTER TABLE CombatPlanifie ALTER COLUMN Gameplan NVARCHAR(200) NOT NULL;
+    """);
+
     // Table EntrainementPlanifie
     db.Database.ExecuteSqlRaw("""
         IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'EntrainementPlanifie' AND type = 'U')
@@ -489,6 +495,26 @@ using (var scope = app.Services.CreateScope())
         ('Agent Sportif',
          'Tu connais le business comme ta poche. Négociations, contacts, réputation — ton réseau est ton arme secrète.',
          N'🤝', 0, 0, 0, 0, 0, 10, 15, 25, 10);
+    """);
+
+    // Pays manquants importants pour le MMA (idempotent)
+    db.Database.ExecuteSqlRaw("""
+        IF NOT EXISTS (SELECT 1 FROM Pays WHERE Code = N'ITA')
+            INSERT INTO Pays (Code, Nom, Continent) VALUES (N'ITA', N'Italie', N'Europe');
+        IF NOT EXISTS (SELECT 1 FROM Pays WHERE Code = N'ESP')
+            INSERT INTO Pays (Code, Nom, Continent) VALUES (N'ESP', N'Espagne', N'Europe');
+        IF NOT EXISTS (SELECT 1 FROM Pays WHERE Code = N'DEU')
+            INSERT INTO Pays (Code, Nom, Continent) VALUES (N'DEU', N'Allemagne', N'Europe');
+        IF NOT EXISTS (SELECT 1 FROM Pays WHERE Code = N'BEL')
+            INSERT INTO Pays (Code, Nom, Continent) VALUES (N'BEL', N'Belgique', N'Europe');
+        IF NOT EXISTS (SELECT 1 FROM Pays WHERE Code = N'ARG')
+            INSERT INTO Pays (Code, Nom, Continent) VALUES (N'ARG', N'Argentine', N'Amérique du Sud');
+        IF NOT EXISTS (SELECT 1 FROM Pays WHERE Code = N'ALG')
+            INSERT INTO Pays (Code, Nom, Continent) VALUES (N'ALG', N'Algérie', N'Afrique');
+        IF NOT EXISTS (SELECT 1 FROM Pays WHERE Code = N'TUN')
+            INSERT INTO Pays (Code, Nom, Continent) VALUES (N'TUN', N'Tunisie', N'Afrique');
+        IF NOT EXISTS (SELECT 1 FROM Pays WHERE Code = N'UZB')
+            INSERT INTO Pays (Code, Nom, Continent) VALUES (N'UZB', N'Ouzbékistan', N'Asie');
     """);
 
     // Seed des organisations de combat (si la table est vide)

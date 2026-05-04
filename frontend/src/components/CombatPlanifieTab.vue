@@ -18,7 +18,31 @@ const loading       = ref(true)
 const expanded      = ref(null)     // combattantID ouvert
 const adversaires   = ref([])
 const loadingAdv    = ref(false)
-const form = ref({ adversaireID: null, organisationID: null, delaiMois: 1, gameplan: 'Balanced' })
+const form = ref({ adversaireID: null, organisationID: null, delaiMois: 1,
+  gameplan: { approche: 'Balanced', distance: 'Moyenne', cibles: 'Mixte', rythme: 'Normal' } })
+
+const approches = [
+  { value: 'Striking',  icon: '🥊', label: 'Striking',  desc: 'Rester debout, frapper à distance' },
+  { value: 'Balanced',  icon: '⚖️', label: 'Équilibré', desc: "S'adapter aux opportunités" },
+  { value: 'Grappling', icon: '🤼', label: 'Grappling', desc: 'Emmener au sol, soumettre' },
+  { value: 'Clinch',    icon: '🤜', label: 'Clinch',    desc: 'Corps-à-corps, genoux, coudes' },
+]
+const distances = [
+  { value: 'Exterieur', icon: '📏', label: 'Extérieure', desc: "Utiliser l'allonge et les kicks" },
+  { value: 'Moyenne',   icon: '⚡', label: 'Moyenne',    desc: 'Distance standard' },
+  { value: 'Interieur', icon: '💥', label: 'Intérieure', desc: 'Combos, uppercuts, crochets' },
+]
+const cibles_opts = [
+  { value: 'Tete',   icon: '🎯', label: 'Tête',   desc: 'Chercher le KO' },
+  { value: 'Corps',  icon: '🫁', label: 'Corps',  desc: "Épuiser l'adversaire" },
+  { value: 'Jambes', icon: '🦵', label: 'Jambes', desc: 'Réduire la mobilité' },
+  { value: 'Mixte',  icon: '🔀', label: 'Mixte',  desc: 'Varier les cibles' },
+]
+const rythmes = [
+  { value: 'Agressif', icon: '🔥', label: 'Agressif', desc: 'Attaque dès le 1er round' },
+  { value: 'Normal',   icon: '🏃', label: 'Normal',   desc: 'Rythme régulier' },
+  { value: 'Patient',  icon: '🧠', label: 'Patient',  desc: 'Monter en puissance' },
+]
 const saving = ref(false)
 
 // ── Computed ──────────────────────────────────────────────────
@@ -102,10 +126,24 @@ async function chargerAdversaires(combattantID) {
   }
 }
 
+function parseGameplan(gp) {
+  if (!gp) return { approche: 'Balanced', distance: 'Moyenne', cibles: 'Mixte', rythme: 'Normal' }
+  if (typeof gp === 'object') return gp
+  try { return JSON.parse(gp) } catch { return { approche: gp, distance: 'Moyenne', cibles: 'Mixte', rythme: 'Normal' } }
+}
+
+function gameplanLabel(gameplanStr) {
+  const gp = parseGameplan(gameplanStr)
+  const approche = gp.approche ?? 'Balanced'
+  const icons = { Striking: '🥊', Grappling: '🤼', Clinch: '🤜', Balanced: '⚖️' }
+  return { approche, icon: icons[approche] ?? '⚖️' }
+}
+
 async function ouvrirPlanification(combattantID) {
   if (expanded.value === combattantID) { expanded.value = null; return }
   expanded.value = combattantID
-  form.value = { adversaireID: null, organisationID: null, delaiMois: 1, gameplan: 'Balanced' }
+  form.value = { adversaireID: null, organisationID: null, delaiMois: 1,
+    gameplan: { approche: 'Balanced', distance: 'Moyenne', cibles: 'Mixte', rythme: 'Normal' } }
   adversaires.value = []
   await chargerAdversaires(combattantID)
 }
@@ -130,7 +168,7 @@ async function planifier(combattantID) {
         adversaireID:   form.value.adversaireID,
         organisationID: form.value.organisationID,
         tourPrevu,
-        gameplan:       form.value.gameplan,
+        gameplan:       JSON.stringify(form.value.gameplan),
       }),
     })
     if (res.ok) {
@@ -222,9 +260,10 @@ onMounted(charger)
                   Tour {{ combatPourFighter(fighter.combattantID).tourPrevu }}
                   ({{ tourVersDate(combatPourFighter(fighter.combattantID).tourPrevu) }})
                 </span>
-                <span class="gameplan-badge" :class="`gp-${(combatPourFighter(fighter.combattantID).gameplan || 'Balanced').toLowerCase()}`">
-                  {{ combatPourFighter(fighter.combattantID).gameplan === 'Striking' ? '🥊' : combatPourFighter(fighter.combattantID).gameplan === 'Grappling' ? '🤼' : '⚖️' }}
-                  {{ combatPourFighter(fighter.combattantID).gameplan || 'Balanced' }}
+                <span class="gameplan-badge"
+                  :class="`gp-${gameplanLabel(combatPourFighter(fighter.combattantID).gameplan).approche.toLowerCase()}`">
+                  {{ gameplanLabel(combatPourFighter(fighter.combattantID).gameplan).icon }}
+                  {{ gameplanLabel(combatPourFighter(fighter.combattantID).gameplan).approche }}
                 </span>
               </div>
               <button
@@ -365,37 +404,75 @@ onMounted(charger)
             </div>
           </div>
 
-          <!-- Gameplan -->
+          <!-- Gameplan multi-axes -->
           <div class="plan-gameplan">
             <span class="plan-label">Gameplan</span>
-            <div class="gameplan-options">
-              <button
-                class="gameplan-btn gameplan-striking"
-                :class="{ selected: form.gameplan === 'Striking' }"
-                @click="form.gameplan = 'Striking'"
-              >
-                <span class="gameplan-icon">🥊</span>
-                <span class="gameplan-name">Striking</span>
-                <span class="gameplan-desc">Rester debout, éviter les takedowns</span>
-              </button>
-              <button
-                class="gameplan-btn gameplan-balanced"
-                :class="{ selected: form.gameplan === 'Balanced' }"
-                @click="form.gameplan = 'Balanced'"
-              >
-                <span class="gameplan-icon">⚖️</span>
-                <span class="gameplan-name">Équilibré</span>
-                <span class="gameplan-desc">S'adapter selon les opportunités</span>
-              </button>
-              <button
-                class="gameplan-btn gameplan-grappling"
-                :class="{ selected: form.gameplan === 'Grappling' }"
-                @click="form.gameplan = 'Grappling'"
-              >
-                <span class="gameplan-icon">🤼</span>
-                <span class="gameplan-name">Grappling</span>
-                <span class="gameplan-desc">Emmener au sol, chercher la soumission</span>
-              </button>
+            <div class="gameplan-grid">
+
+              <div class="gameplan-section">
+                <span class="gameplan-section-label">Approche</span>
+                <div class="gameplan-options">
+                  <button
+                    v-for="opt in approches" :key="opt.value"
+                    class="gameplan-btn"
+                    :class="{ selected: form.gameplan.approche === opt.value }"
+                    @click="form.gameplan.approche = opt.value"
+                  >
+                    <span class="gameplan-icon">{{ opt.icon }}</span>
+                    <span class="gameplan-name">{{ opt.label }}</span>
+                    <span class="gameplan-desc">{{ opt.desc }}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="gameplan-section">
+                <span class="gameplan-section-label">Distance</span>
+                <div class="gameplan-options">
+                  <button
+                    v-for="opt in distances" :key="opt.value"
+                    class="gameplan-btn"
+                    :class="{ selected: form.gameplan.distance === opt.value }"
+                    @click="form.gameplan.distance = opt.value"
+                  >
+                    <span class="gameplan-icon">{{ opt.icon }}</span>
+                    <span class="gameplan-name">{{ opt.label }}</span>
+                    <span class="gameplan-desc">{{ opt.desc }}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="gameplan-section">
+                <span class="gameplan-section-label">Cibles</span>
+                <div class="gameplan-options">
+                  <button
+                    v-for="opt in cibles_opts" :key="opt.value"
+                    class="gameplan-btn"
+                    :class="{ selected: form.gameplan.cibles === opt.value }"
+                    @click="form.gameplan.cibles = opt.value"
+                  >
+                    <span class="gameplan-icon">{{ opt.icon }}</span>
+                    <span class="gameplan-name">{{ opt.label }}</span>
+                    <span class="gameplan-desc">{{ opt.desc }}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="gameplan-section">
+                <span class="gameplan-section-label">Rythme</span>
+                <div class="gameplan-options">
+                  <button
+                    v-for="opt in rythmes" :key="opt.value"
+                    class="gameplan-btn"
+                    :class="{ selected: form.gameplan.rythme === opt.value }"
+                    @click="form.gameplan.rythme = opt.value"
+                  >
+                    <span class="gameplan-icon">{{ opt.icon }}</span>
+                    <span class="gameplan-name">{{ opt.label }}</span>
+                    <span class="gameplan-desc">{{ opt.desc }}</span>
+                  </button>
+                </div>
+              </div>
+
             </div>
           </div>
 
@@ -736,12 +813,25 @@ onMounted(charger)
 
 /* Gameplan selector */
 .plan-gameplan { display: flex; flex-direction: column; gap: 8px; }
-.gameplan-options { display: flex; gap: 8px; flex-wrap: wrap; }
+.gameplan-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 600px) { .gameplan-grid { grid-template-columns: 1fr; } }
+.gameplan-section { display: flex; flex-direction: column; gap: 6px; }
+.gameplan-section-label {
+  font-size: .68rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.gameplan-options { display: flex; gap: 6px; flex-wrap: wrap; }
 .gameplan-btn {
   flex: 1;
-  min-width: 120px;
-  padding: 10px 12px;
-  border-radius: 12px;
+  min-width: 72px;
+  padding: 8px 8px;
+  border-radius: 10px;
   border: 1px solid rgba(255,255,255,.1);
   background: rgba(255,255,255,.04);
   cursor: pointer;
@@ -749,18 +839,15 @@ onMounted(charger)
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
   text-align: center;
 }
-.gameplan-icon  { font-size: 1.2rem; }
-.gameplan-name  { font-size: .82rem; font-weight: 700; color: #e2e8f0; }
-.gameplan-desc  { font-size: .68rem; color: #64748b; }
-.gameplan-striking:hover,  .gameplan-striking.selected  { background: rgba(239,68,68,.12);  border-color: rgba(239,68,68,.4);  }
-.gameplan-balanced:hover,  .gameplan-balanced.selected  { background: rgba(99,102,241,.12); border-color: rgba(99,102,241,.4); }
-.gameplan-grappling:hover, .gameplan-grappling.selected { background: rgba(34,197,94,.12);  border-color: rgba(34,197,94,.4);  }
-.gameplan-striking.selected  .gameplan-name { color: #f87171; }
-.gameplan-balanced.selected  .gameplan-name { color: #a5b4fc; }
-.gameplan-grappling.selected .gameplan-name { color: #4ade80; }
+.gameplan-btn:hover   { background: rgba(99,102,241,.10); border-color: rgba(99,102,241,.3); }
+.gameplan-btn.selected { background: rgba(99,102,241,.22); border-color: #6366f1; }
+.gameplan-icon  { font-size: 1.1rem; }
+.gameplan-name  { font-size: .78rem; font-weight: 700; color: #e2e8f0; }
+.gameplan-desc  { font-size: .62rem; color: #64748b; }
+.gameplan-btn.selected .gameplan-name { color: #a5b4fc; }
 
 /* Gameplan badge on planned fight */
 .gameplan-badge {
@@ -773,6 +860,7 @@ onMounted(charger)
 .gp-striking  { background: rgba(239,68,68,.15);  color: #f87171; }
 .gp-balanced  { background: rgba(99,102,241,.15); color: #a5b4fc; }
 .gp-grappling { background: rgba(34,197,94,.15);  color: #4ade80; }
+.gp-clinch    { background: rgba(249,115,22,.15); color: #fb923c; }
 
 /* Actions */
 .plan-actions {

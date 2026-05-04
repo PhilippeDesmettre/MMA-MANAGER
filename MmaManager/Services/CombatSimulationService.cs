@@ -1,12 +1,13 @@
+using System.Text.Json;
 using MmaManager.Models;
 using MmaManager.Models.Dtos;
 
 namespace MmaManager.Services;
 
 public record BlessureCombat(
-    byte    Gravite,          // 1=légère, 2=modérée, 3=grave
-    string? Zone,             // "Tête", "Main", "Genou"…
-    short   SemainesIndispo); // tours d'indisponibilité
+    byte    Gravite,
+    string? Zone,
+    short   SemainesIndispo);
 
 public record SimResultat(
     bool   EstVictoire,
@@ -78,11 +79,36 @@ public class CombatSimulationService
         double tailleA = adverse.TailleCm ?? 178;
         double heightAdvantage = Math.Clamp((tailleN - tailleA) / 25.0, -1.0, 1.0);
 
+        // ── Parse gameplan multi-axes (compatible avec les anciennes chaînes) ──
+        string approche = "Balanced", distance = "Moyenne", cibles = "Mixte", rythme = "Normal";
+        if (gameplan.StartsWith("{"))
+        {
+            var gp = JsonSerializer.Deserialize<GameplanData>(gameplan,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (gp is not null)
+            {
+                approche = gp.Approche ?? "Balanced";
+                distance = gp.Distance ?? "Moyenne";
+                cibles   = gp.Cibles   ?? "Mixte";
+                rythme   = gp.Rythme   ?? "Normal";
+            }
+        }
+        else { approche = gameplan; }
+
+        // Pré-calcul des modificateurs de distance
+        double distReachMult      = distance == "Exterieur" ? 1.5  : distance == "Interieur" ? 0.3  : 1.0;
+        double distFootworkBonus  = distance == "Exterieur" ? 5.0  : 0.0;
+        double distCombosBonus    = distance == "Interieur" ? 5.0  : 0.0;
+        double distClinchBonus    = distance == "Interieur" ? 3.0  : distance == "Exterieur" ? -4.0 : 0.0;
+        double distProbClinch     = distance == "Interieur" ? 0.08 : 0.0;
+
         int totalRounds = isTitleFight ? 5 : 3;
 
         double dommagesN = 0, dommagesA = 0;
         bool coupureN = false, coupureA = false;
         int coupureRoundN = 0, coupureRoundA = 0;
+        double fatigueDebuffCorps = 0.0;
+        double legDamageA = 0.0;
 
         var rounds = new List<RoundDetailDto>();
         bool combatTermine = false, notreVictoire = false, estNul = false;
@@ -91,8 +117,8 @@ public class CombatSimulationService
         string detailsFinal = "";
         int scoreCarteN = 0, scoreCarteA = 0;
 
-        double koMult  = gameplan == "Striking"  ? 1.40 : gameplan == "Grappling" ? 0.65 : 1.0;
-        double subMult = gameplan == "Grappling" ? 1.45 : gameplan == "Striking"  ? 0.55 : 1.0;
+        double koMult  = approche == "Striking"  ? 1.40 : approche == "Grappling" ? 0.65 : approche == "Clinch" ? 0.85 : 1.0;
+        double subMult = approche == "Grappling" ? 1.45 : approche == "Striking"  ? 0.55 : approche == "Clinch" ? 0.80 : 1.0;
 
         // Probabilités de takedown (calculées une fois)
         double tdN = notre.StatTakedown   / (double)(notre.StatTakedown   + adverse.StatAntiTakedown + 1);
@@ -101,8 +127,9 @@ public class CombatSimulationService
         if (ScoreGrappling(notre)   > StrikingDistance(notre)   + 8) tdN = Math.Min(0.80, tdN + 0.15);
         if (ScoreGrappling(adverse) > StrikingDistance(adverse) + 8) tdA = Math.Min(0.80, tdA + 0.15);
 
-        if      (gameplan == "Striking")  { tdN *= 0.25; tdA *= 1.1; }
-        else if (gameplan == "Grappling") { tdN  = Math.Min(0.90, tdN * 1.8); tdA *= 0.7; }
+        if      (approche == "Striking")  { tdN *= 0.25; tdA *= 1.1; }
+        else if (approche == "Grappling") { tdN  = Math.Min(0.90, tdN * 1.8); tdA *= 0.7; }
+        else if (approche == "Clinch")    { tdN  = Math.Min(0.90, tdN * 1.3); tdA *= 0.9; }
 
         tdN = Math.Clamp(tdN - heightAdvantage * 0.05, 0, 0.90);
         tdA = Math.Clamp(tdA + heightAdvantage * 0.05, 0, 0.90);
@@ -119,8 +146,22 @@ public class CombatSimulationService
         {
             double fatigueMult  = CalculerFatigue(rd, totalRounds, notre.StatCardio);
             double fatigueMultA = CalculerFatigue(rd, totalRounds, adverse.StatCardio);
-            double effN = fatigueMult  * Math.Max(0.30, 1.0 - dommagesN / 200.0);
-            double effA = fatigueMultA * Math.Max(0.30, 1.0 - dommagesA / 200.0);
+
+            // Modificateurs rythme
+            double rythmeMultN = rythme == "Agressif" ? (rd <= 2 ? 1.12 : 0.88)
+                               : rythme == "Patient"  ? (rd == 1 ? 0.90 : rd >= totalRounds ? 1.10 : 1.0)
+                               : 1.0;
+            double rythmeKoMult = (rythme == "Agressif" && rd <= 2)          ? 1.20
+                                : (rythme == "Patient"  && rd == totalRounds) ? 1.25 : 1.0;
+
+            // Modificateurs cibles/fightIQ
+            double ciblesKoMult  = cibles == "Tete" ? 1.30 : cibles == "Corps" ? 0.70 : cibles == "Jambes" ? 0.50 : 1.0;
+            double fightIQBonusN = rythme == "Patient" ? 3.0 : 0.0;
+            double effectiveReach = reachAdvantage * distReachMult;
+
+            double effN = fatigueMult  * rythmeMultN * Math.Max(0.30, 1.0 - dommagesN / 200.0);
+            double effA = (fatigueMultA - (cibles == "Corps" ? Math.Min(fatigueDebuffCorps, 0.15) : 0.0))
+                        * Math.Max(0.30, 1.0 - dommagesA / 200.0);
 
             int nbSequences = 2 + (rng.NextDouble() < 0.35 ? 1 : 0);
 
@@ -133,33 +174,37 @@ public class CombatSimulationService
 
             for (int seq = 0; seq < nbSequences && !roundTermine; seq++)
             {
-                Phase phase = DeterminerPhase(notre, adverse, gameplan, rng,
-                    reachAdvantage, heightAdvantage, seq, phaseActuelle, tdN, tdA);
+                Phase phase = DeterminerPhase(notre, adverse, approche, rng,
+                    reachAdvantage, heightAdvantage, seq, phaseActuelle, tdN, tdA,
+                    distProbClinch);
                 phaseActuelle = phase;
 
                 double seqScoreN, seqScoreA;
+                double legPenaltyA = Math.Min(legDamageA * 0.3, 12.0);
 
                 switch (phase)
                 {
                     case Phase.Debout:
                         seqScoreN = StrikingDistance(notre)  * 0.35 * effN
-                                  + DefenseDebout(notre)      * 0.15
-                                  + ScoreCombos(notre)        * 0.15
-                                  + FightIQ(notre)            * 0.15
-                                  + reachAdvantage * 6.0 + Bruit();
+                                  + DefenseDebout(notre)     * 0.15
+                                  + (ScoreCombos(notre) + distCombosBonus) * 0.15
+                                  + (FightIQ(notre) + fightIQBonusN)      * 0.15
+                                  + distFootworkBonus
+                                  + effectiveReach * 6.0 + Bruit();
                         seqScoreA = StrikingDistance(adverse) * 0.35 * effA
-                                  + DefenseDebout(adverse)    * 0.15
+                                  + DefenseDebout(adverse)    * 0.15 * (cibles == "Tete" ? 1.10 : 1.0)
                                   + ScoreCombos(adverse)      * 0.15
                                   + FightIQ(adverse)          * 0.15
-                                  - reachAdvantage * 6.0 + Bruit();
+                                  - effectiveReach * 6.0 + Bruit()
+                                  - legPenaltyA;
                         actionsRound.Add(NarratifDebout(notre, adverse, seqScoreN, seqScoreA, rng));
                         break;
 
                     case Phase.Clinch:
-                        // Le fighter plus petit a un avantage (centre de gravité, underhooks)
-                        seqScoreN = ScoreClinch(notre)   * 0.40 * effN
-                                  + FightIQ(notre)       * 0.20
+                        seqScoreN = ScoreClinch(notre)   * 0.40 * effN * (approche == "Clinch" ? 1.08 : 1.0)
+                                  + (FightIQ(notre) + fightIQBonusN) * 0.20
                                   + notre.StatForce      * 0.15 * effN
+                                  + distClinchBonus
                                   - heightAdvantage * 4.0 + Bruit();
                         seqScoreA = ScoreClinch(adverse) * 0.40 * effA
                                   + FightIQ(adverse)     * 0.20
@@ -170,14 +215,14 @@ public class CombatSimulationService
 
                     default: // Sol
                         seqScoreN = ScoreGrappling(notre)  * 0.40 * effN
-                                  + DefenseSol(notre)       * 0.15
-                                  + FightIQ(notre)          * 0.20
-                                  + notre.StatForce         * 0.10 * effN
+                                  + DefenseSol(notre)      * 0.15
+                                  + (FightIQ(notre) + fightIQBonusN) * 0.20
+                                  + notre.StatForce        * 0.10 * effN
                                   + Bruit();
                         seqScoreA = ScoreGrappling(adverse) * 0.40 * effA
-                                  + DefenseSol(adverse)      * 0.15
-                                  + FightIQ(adverse)         * 0.20
-                                  + adverse.StatForce        * 0.10 * effA
+                                  + DefenseSol(adverse)     * 0.15
+                                  + FightIQ(adverse)        * 0.20
+                                  + adverse.StatForce       * 0.10 * effA
                                   + Bruit();
                         actionsRound.Add(NarratifSol(notre, adverse, seqScoreN, seqScoreA, rng));
                         break;
@@ -186,11 +231,20 @@ public class CombatSimulationService
                 scoreRoundN += seqScoreN;
                 scoreRoundA += seqScoreA;
 
-                // Dégâts cumulatifs : le perdant de la séquence absorbe
+                // Dégâts cumulatifs
                 bool notreSeqDom = seqScoreN >= seqScoreA;
                 double diffSeq   = Math.Abs(seqScoreN - seqScoreA);
                 if (notreSeqDom) dommagesA = Math.Min(100, dommagesA + diffSeq * 0.12);
                 else             dommagesN = Math.Min(100, dommagesN + diffSeq * 0.12);
+
+                // Accumulation cibles
+                if (notreSeqDom)
+                {
+                    if (cibles == "Corps")
+                        fatigueDebuffCorps = Math.Min(fatigueDebuffCorps + 0.02, 0.15);
+                    else if (cibles == "Jambes" && phase == Phase.Debout)
+                        legDamageA = Math.Min(legDamageA + 1.5, 20.0);
+                }
 
                 // Attaquant / défenseur pour le check finish
                 var    att              = notreSeqDom ? notre   : adverse;
@@ -208,7 +262,7 @@ public class CombatSimulationService
                     double reachKoBonus = 1.0 + reachAdvantage * (notreAtt ? 0.15 : -0.15);
                     double koBase = StrikingDistance(att) / 100.0
                                   * Math.Max(0.15, 1.0 - def.StatMentoniere / 100.0);
-                    koChance = koBase * 0.12 * koMult * reachKoBonus * dommageMultDef;
+                    koChance = koBase * 0.12 * koMult * ciblesKoMult * rythmeKoMult * reachKoBonus * dommageMultDef;
                 }
                 else if (phase == Phase.Clinch)
                 {
@@ -217,13 +271,13 @@ public class CombatSimulationService
                         : 1.0 + heightAdvantage * 0.15;
                     double koBase = ScoreClinch(att) / 100.0
                                   * Math.Max(0.15, 1.0 - def.StatMentoniere / 100.0);
-                    koChance = koBase * 0.08 * koMult * clinchKoBonus * dommageMultDef;
+                    koChance = koBase * 0.08 * koMult * ciblesKoMult * rythmeKoMult * clinchKoBonus * dommageMultDef;
                 }
                 else // Sol
                 {
                     double tkoBase = StrikingDistance(att) / 100.0
                                    * Math.Max(0.15, 1.0 - def.StatMentoniere * 0.7 / 100.0);
-                    tkoChance = tkoBase * 0.08 * koMult * dommageMultDef;
+                    tkoChance = tkoBase * 0.08 * koMult * rythmeKoMult * dommageMultDef;
 
                     double subBase = ScoreGrappling(att) / 100.0
                                    * Math.Max(0.10, 1.0 - def.StatEvasionSub / 100.0);
@@ -261,17 +315,30 @@ public class CombatSimulationService
                     actionsRound.Add($"{nomAtt} force la soumission par {subType} !");
                     roundTermine = true; combatTermine = true;
                 }
-                else if (phase is Phase.Debout or Phase.Clinch)
+                else
                 {
-                    // Chance de coupure (coudes en clinch plus dangereux)
-                    double coupureChance = (phase == Phase.Clinch ? 0.04 : 0.02)
-                                         * att.StatPrecision / 100.0;
-                    bool dejaCoupure = notreAtt ? coupureA : coupureN;
-                    if (!dejaCoupure && rng.NextDouble() < coupureChance)
+                    // Dégâts aux jambes : stoppage possible si légère sévère + Notre domine debout
+                    if (cibles == "Jambes" && phase == Phase.Debout
+                        && notreSeqDom && legDamageA > 8 && rng.NextDouble() < 0.05)
                     {
-                        if (notreAtt) { coupureA = true; coupureRoundA = rd; }
-                        else          { coupureN = true; coupureRoundN = rd; }
-                        actionsRound.Add($"{nomDef} est coupé ! L'arbitre surveille la blessure.");
+                        finish = true; methodeFinish = "TKO (dégâts aux jambes)";
+                        methodeFinale = "TKO"; roundFin = (byte)rd; notreVictoire = true;
+                        detailsFinal = $"TKO (dégâts aux jambes) au round {rd}";
+                        actionsRound.Add("L'adversaire s'effondre, ses jambes ne le supportent plus !");
+                        roundTermine = true; combatTermine = true;
+                    }
+                    else if (phase is Phase.Debout or Phase.Clinch)
+                    {
+                        // Chance de coupure
+                        double coupureChance = (phase == Phase.Clinch ? 0.04 : 0.02)
+                                             * att.StatPrecision / 100.0;
+                        bool dejaCoupure = notreAtt ? coupureA : coupureN;
+                        if (!dejaCoupure && rng.NextDouble() < coupureChance)
+                        {
+                            if (notreAtt) { coupureA = true; coupureRoundA = rd; }
+                            else          { coupureN = true; coupureRoundN = rd; }
+                            actionsRound.Add($"{nomDef} est coupé ! L'arbitre surveille la blessure.");
+                        }
                     }
                 }
             } // fin séquences
@@ -427,9 +494,10 @@ public class CombatSimulationService
     // ── Transition de phase ──────────────────────────────────────
 
     private Phase DeterminerPhase(
-        Combattant notre, Combattant adverse, string gameplan, Random rng,
+        Combattant notre, Combattant adverse, string approche, Random rng,
         double reachAdvantage, double heightAdvantage,
-        int seq, Phase phaseActuelle, double tdN, double tdA)
+        int seq, Phase phaseActuelle, double tdN, double tdA,
+        double distProbClinch = 0.0)
     {
         if (seq == 0) return Phase.Debout;
 
@@ -443,14 +511,16 @@ public class CombatSimulationService
                     0.15
                     + (ScoreClinch(adverse) > ScoreClinch(notre) ? 0.10 : 0.0)
                     - reachAdvantage * 0.10
-                    + (gameplan == "Grappling" ? 0.05 : 0.0)
-                    - (gameplan == "Striking"  ? 0.08 : 0.0),
-                    0.0, 0.50);
+                    + (approche == "Grappling" ? 0.05 : 0.0)
+                    - (approche == "Striking"  ? 0.08 : 0.0)
+                    + (approche == "Clinch"    ? 0.15 : 0.0)
+                    + distProbClinch,
+                    0.0, 0.60);
 
                 double probSol = Math.Clamp(
                     Math.Max(tdN, tdA) * 0.45
-                    * (gameplan == "Striking"  ? 0.30 : 1.0)
-                    * (gameplan == "Grappling" ? 1.50 : 1.0),
+                    * (approche == "Striking"  ? 0.30 : 1.0)
+                    * (approche == "Grappling" ? 1.50 : 1.0),
                     0.0, 0.45);
 
                 if (roll < probSol)              return Phase.Sol;
@@ -462,13 +532,14 @@ public class CombatSimulationService
             {
                 double probSol = Math.Clamp(
                     Math.Max(tdN, tdA) * 0.80
-                    * (gameplan == "Striking"  ? 0.20 : 1.0)
-                    * (gameplan == "Grappling" ? 1.30 : 1.0),
+                    * (approche == "Striking"  ? 0.20 : 1.0)
+                    * (approche == "Grappling" ? 1.30 : 1.0),
                     0.0, 0.60);
 
                 double probDebout = Math.Clamp(
                     0.20 + notre.StatFootwork / 200.0
-                    + (gameplan == "Striking" ? 0.15 : 0.0),
+                    + (approche == "Striking" ? 0.15 : 0.0)
+                    - (approche == "Clinch"   ? 0.10 : 0.0),
                     0.0, 0.55);
 
                 if (roll < probSol)              return Phase.Sol;
@@ -482,8 +553,8 @@ public class CombatSimulationService
                     0.15
                     + (notre.StatAgilite + notre.StatEvasionSub) * 0.001
                     - adverse.StatControleSol * 0.0015
-                    + (gameplan == "Striking"  ? 0.15 : 0.0)
-                    - (gameplan == "Grappling" ? 0.10 : 0.0),
+                    + (approche == "Striking"  ? 0.15 : 0.0)
+                    - (approche == "Grappling" ? 0.10 : 0.0),
                     0.05, 0.55);
 
                 if (roll < probDebout) return Phase.Debout;
@@ -597,5 +668,15 @@ public class CombatSimulationService
             "Lutte au sol serrée, les deux fighters s'annulent mutuellement."
         ];
         return eq[rng.Next(eq.Length)];
+    }
+
+    // ── Gameplan JSON ────────────────────────────────────────────
+
+    private class GameplanData
+    {
+        public string? Approche { get; set; }
+        public string? Distance { get; set; }
+        public string? Cibles   { get; set; }
+        public string? Rythme   { get; set; }
     }
 }

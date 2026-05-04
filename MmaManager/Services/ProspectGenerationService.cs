@@ -1,165 +1,216 @@
-using Microsoft.Data.SqlClient;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using MmaManager.Data;
 using MmaManager.Models;
 
 public class ProspectGenerationService(MmaContext db)
 {
+    private record NomsPays(
+        List<string> Prenoms_h,
+        List<string> Prenoms_f,
+        List<string> Noms);
+
+    private Dictionary<string, NomsPays>? _nomsParPays;
+
+    private Dictionary<string, NomsPays> ChargerNoms()
+    {
+        if (_nomsParPays is not null) return _nomsParPays;
+
+        var jsonPath = Path.Combine(AppContext.BaseDirectory, "Data", "noms_par_pays.json");
+        if (!File.Exists(jsonPath))
+        {
+            return _nomsParPays = new Dictionary<string, NomsPays>
+            {
+                ["_default"] = new(
+                    ["Alex", "Daniel", "Max", "Marco", "Victor", "Leo", "Adam", "Erik", "Andre", "Oscar"],
+                    ["Maria", "Sofia", "Elena", "Anna", "Sara", "Lina", "Nina", "Eva", "Mia", "Leila"],
+                    ["Silva", "Kim", "Ali", "Smith", "Garcia", "Rossi", "Santos", "Petrov", "Tanaka", "Hansen"])
+            };
+        }
+
+        var json = File.ReadAllText(jsonPath);
+        _nomsParPays = JsonSerializer.Deserialize<Dictionary<string, NomsPays>>(json,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+            ?? new Dictionary<string, NomsPays>();
+        return _nomsParPays;
+    }
+
+    private (string prenom, string nom) GenererNom(string codePays, string genre, Random rng)
+    {
+        var noms = ChargerNoms();
+        if (!noms.TryGetValue(codePays, out var pool))
+            pool = noms.GetValueOrDefault("_default") ?? noms.Values.First();
+
+        var prenoms = genre == "H" ? pool.Prenoms_h : pool.Prenoms_f;
+        return (prenoms[rng.Next(prenoms.Count)], pool.Noms[rng.Next(pool.Noms.Count)]);
+    }
+
     public async Task GenererProspects(int paysResidenceId, int anneeDepart)
     {
-        await db.Database.ExecuteSqlRawAsync("""
-            DECLARE @ph TABLE (i INT, v NVARCHAR(60))
-            INSERT INTO @ph VALUES
-            (0,N'Lucas'),(1,N'Théo'),(2,N'Maxime'),(3,N'Antoine'),(4,N'Baptiste'),
-            (5,N'Hugo'),(6,N'Tom'),(7,N'Mathieu'),(8,N'Pierre'),(9,N'Julien'),
-            (10,N'Nicolas'),(11,N'Clément'),(12,N'Alexandre'),(13,N'Thomas'),(14,N'Kevin'),
-            (15,N'Romain'),(16,N'Alexis'),(17,N'Dylan'),(18,N'Jordan'),(19,N'Florian')
+        var rng = new Random();
 
-            DECLARE @pf TABLE (i INT, v NVARCHAR(60))
-            INSERT INTO @pf VALUES
-            (0,N'Léa'),(1,N'Emma'),(2,N'Chloé'),(3,N'Manon'),(4,N'Inès'),
-            (5,N'Sarah'),(6,N'Jade'),(7,N'Camille'),(8,N'Laura'),(9,N'Noémie'),
-            (10,N'Marine'),(11,N'Lucie'),(12,N'Clara'),(13,N'Pauline'),(14,N'Marie')
+        var paysLocal = await db.Pays.FindAsync(paysResidenceId);
+        var codePaysLocal = paysLocal?.Code ?? "_default";
 
-            DECLARE @ln TABLE (i INT, v NVARCHAR(60))
-            INSERT INTO @ln VALUES
-            (0,N'Dupont'),(1,N'Martin'),(2,N'Bernard'),(3,N'Dubois'),(4,N'Moreau'),
-            (5,N'Laurent'),(6,N'Simon'),(7,N'Michel'),(8,N'Lefebvre'),(9,N'Leroy'),
-            (10,N'Roux'),(11,N'David'),(12,N'Bertrand'),(13,N'Morel'),(14,N'Fournier'),
-            (15,N'Girard'),(16,N'Bonnet'),(17,N'Dupuis'),(18,N'Lacroix'),(19,N'Boyer')
+        var paysInternationaux = await db.Pays
+            .Where(p => p.PaysID != paysResidenceId)
+            .ToListAsync();
 
-            -- Pool international : exclure le pays local
-            DECLARE @pp TABLE (i INT, pid INT)
-            INSERT INTO @pp
-            SELECT CAST(ROW_NUMBER() OVER (ORDER BY PaysID) AS INT) - 1, PaysID
-            FROM Pays
-            WHERE Code IN (N'FRA',N'BEL',N'CAN',N'MAR',N'ESP',N'ITA',N'GBR',N'DEU',
-                           N'USA',N'BRA',N'MEX',N'ARG',N'JPN',N'RUS',N'KOR',N'AUS',
-                           N'SEN',N'CMR',N'ALG',N'TUN')
-              AND PaysID <> @paysLocal
+        var prospects = new List<Combattant>();
 
-            DECLARE @nPays INT = (SELECT COUNT(*) FROM @pp)
-            DECLARE @j INT = 0
-            DECLARE @g NVARCHAR(1), @prenom2 NVARCHAR(60), @nom2 NVARCHAR(60)
-            DECLARE @paysID2 INT, @catID2 INT, @s INT, @val2 INT, @catMax2 INT
-            DECLARE @dob2 DATE, @poidsCombat DECIMAL(5,1)
+        for (int i = 0; i < 40; i++)
+            prospects.Add(CreerProspect(codePaysLocal, paysResidenceId, paysResidenceId, anneeDepart, rng));
 
-            WHILE @j < 60
-            BEGIN
-                SET @g = CASE WHEN @j % 4 = 0 THEN N'F' ELSE N'H' END
-                SET @catMax2 = CASE WHEN @g = N'H' THEN 10 ELSE 6 END
-                SET @catID2 = (@j % @catMax2) + 1
+        if (paysInternationaux.Count > 0)
+        {
+            for (int i = 0; i < 20; i++)
+            {
+                var p = paysInternationaux[rng.Next(paysInternationaux.Count)];
+                prospects.Add(CreerProspect(p.Code, p.PaysID, p.PaysID, anneeDepart, rng));
+            }
+        }
 
-                IF @g = N'H'
-                    SELECT @prenom2 = v FROM @ph WHERE i = @j % 20
-                ELSE
-                    SELECT @prenom2 = v FROM @pf WHERE i = (@j / 4) % 15
+        db.Combattants.AddRange(prospects);
+        await db.SaveChangesAsync();
+    }
 
-                SELECT @nom2 = v FROM @ln WHERE i = ((@j * 7 + 3) % 20)
+    private Combattant CreerProspect(string codePays, int paysOrigineId, int paysResidenceId, int anneeDepart, Random rng)
+    {
+        var genre = rng.NextDouble() < 0.75 ? "H" : "F";
+        var (prenom, nom) = GenererNom(codePays, genre, rng);
 
-                -- 40 locaux (j < 40), 20 internationaux (j >= 40)
-                IF @j < 40
-                    SET @paysID2 = @paysLocal
-                ELSE IF @nPays > 0
-                    SELECT @paysID2 = pid FROM @pp WHERE i = ((@j - 40) % @nPays)
-                ELSE
-                    SET @paysID2 = @paysLocal
+        int catMax = genre == "H" ? 10 : 6;
+        int catId  = 1 + rng.Next(catMax);
 
-                SET @s = 20 + ABS(CHECKSUM(NEWID())) % 31
-                SET @val2 = 2000 + ABS(CHECKSUM(NEWID())) % 10001
-                SET @dob2 = DATEFROMPARTS(@anneeDepart - 18 - (@j % 6), (@j % 12) + 1, (@j % 28) + 1)
+        byte BaseStat() => (byte)(20 + rng.Next(31));
 
-                SET @poidsCombat = CASE @catID2
-                    WHEN 1 THEN CAST(52.2  AS DECIMAL(5,1))
-                    WHEN 2 THEN CAST(56.7  AS DECIMAL(5,1))
-                    WHEN 3 THEN CAST(61.2  AS DECIMAL(5,1))
-                    WHEN 4 THEN CAST(65.8  AS DECIMAL(5,1))
-                    WHEN 5 THEN CAST(70.3  AS DECIMAL(5,1))
-                    WHEN 6 THEN CAST(77.1  AS DECIMAL(5,1))
-                    WHEN 7 THEN CAST(83.9  AS DECIMAL(5,1))
-                    WHEN 8 THEN CAST(93.0  AS DECIMAL(5,1))
-                    ELSE        CAST(120.2 AS DECIMAL(5,1))
-                END
+        int age = 18 + rng.Next(6);
+        var dob = new DateTime(anneeDepart - age, 1 + rng.Next(12), 1 + rng.Next(28));
 
-                INSERT INTO Combattant (
-                    Prenom, NomFamille, Genre, CategorieID,
-                    PaysOrigineID, PaysResidenceID, DateNaissance, PoidsCombatKg,
-                    StatFrappeDebout, StatPuissance, StatVitesseMains, StatPrecision,
-                    StatCombosDebout, StatKick, StatClinic,
-                    StatEsquive, StatBlocage, StatFootwork,
-                    StatWrestling, StatTakedown, StatAntiTakedown,
-                    [StatContrôleSol],
-                    StatJiuJitsu, StatSubmission, StatEvasionSub,
-                    StatCardio, StatForce, StatVitesse, StatAgilite,
-                    StatMentoniere, StatRecuperation,
-                    StatMental, StatExperience, StatCoaching, StatAdaptation,
-                    Potentiel, Progression,
-                    Moral, Fatigue, Motivation, BlessureGravite, SemainesIndispo,
-                    Statut, Salaire, PrimeSigne, Valeur, SousContrat,
-                    Victoires, Defaites, Nuls,
-                    VictoiresKO, VictoiresSub, VictoiresDec, DefaitesKO, DefaitesSub,
-                    DateCreation
-                ) VALUES (
-                    @prenom2, @nom2, @g, @catID2,
-                    @paysID2, @paysID2, @dob2, @poidsCombat,
-                    CAST(@s + ABS(CHECKSUM(NEWID())) % 11 - 5 AS TINYINT),
-                    CAST(@s + ABS(CHECKSUM(NEWID())) % 11 - 5 AS TINYINT),
-                    CAST(@s + ABS(CHECKSUM(NEWID())) % 11 - 5 AS TINYINT),
-                    CAST(@s + ABS(CHECKSUM(NEWID())) % 11 - 5 AS TINYINT),
-                    CAST(@s + ABS(CHECKSUM(NEWID())) % 11 - 5 AS TINYINT),
-                    CAST(@s + ABS(CHECKSUM(NEWID())) % 11 - 5 AS TINYINT),
-                    CAST(@s + ABS(CHECKSUM(NEWID())) % 11 - 5 AS TINYINT),
-                    CAST(@s + ABS(CHECKSUM(NEWID())) % 11 - 5 AS TINYINT),
-                    CAST(@s + ABS(CHECKSUM(NEWID())) % 11 - 5 AS TINYINT),
-                    CAST(@s + ABS(CHECKSUM(NEWID())) % 11 - 5 AS TINYINT),
-                    CAST(@s + ABS(CHECKSUM(NEWID())) % 11 - 5 AS TINYINT),
-                    CAST(@s + ABS(CHECKSUM(NEWID())) % 11 - 5 AS TINYINT),
-                    CAST(@s + ABS(CHECKSUM(NEWID())) % 11 - 5 AS TINYINT),
-                    CAST(@s + ABS(CHECKSUM(NEWID())) % 11 - 5 AS TINYINT),
-                    CAST(@s + ABS(CHECKSUM(NEWID())) % 11 - 5 AS TINYINT),
-                    CAST(@s + ABS(CHECKSUM(NEWID())) % 11 - 5 AS TINYINT),
-                    CAST(@s + ABS(CHECKSUM(NEWID())) % 11 - 5 AS TINYINT),
-                    CAST(@s + ABS(CHECKSUM(NEWID())) % 11 - 5 AS TINYINT),
-                    CAST(@s + ABS(CHECKSUM(NEWID())) % 11 - 5 AS TINYINT),
-                    CAST(@s + ABS(CHECKSUM(NEWID())) % 11 - 5 AS TINYINT),
-                    CAST(@s + ABS(CHECKSUM(NEWID())) % 11 - 5 AS TINYINT),
-                    CAST(@s + ABS(CHECKSUM(NEWID())) % 11 - 5 AS TINYINT),
-                    CAST(@s + ABS(CHECKSUM(NEWID())) % 11 - 5 AS TINYINT),
-                    CAST(@s + ABS(CHECKSUM(NEWID())) % 11 - 5 AS TINYINT),
-                    CAST(@s + ABS(CHECKSUM(NEWID())) % 11 - 5 AS TINYINT),
-                    CAST(@s + ABS(CHECKSUM(NEWID())) % 11 - 5 AS TINYINT),
-                    CAST(@s + ABS(CHECKSUM(NEWID())) % 11 - 5 AS TINYINT),
-                    CAST(40 + ABS(CHECKSUM(NEWID())) % 41 AS TINYINT),
-                    CAST(50 + ABS(CHECKSUM(NEWID())) % 31 AS TINYINT),
-                    50, 0, CAST(50 + ABS(CHECKSUM(NEWID())) % 21 AS TINYINT), 0, 0,
-                    N'Libre', @val2 / 80, 0, @val2, 0,
-                    0, 0, 0, 0, 0, 0, 0, 0,
-                    GETDATE()
-                )
+        int valeur = 2000 + rng.Next(10001);
 
-                SET @j = @j + 1
-            END
+        var (taille, allonge, poidsReel) = GetPhysique(genre, catId, rng);
 
-            -- Attributs physiques pour les prospects générés
-            UPDATE Combattant SET
-                TailleCm = CASE
-                    WHEN Genre = N'H' AND CategorieID IN (1,2) THEN 160 + ABS(CHECKSUM(NEWID())) % 10
-                    WHEN Genre = N'H' AND CategorieID IN (3,4) THEN 166 + ABS(CHECKSUM(NEWID())) % 12
-                    WHEN Genre = N'H' AND CategorieID IN (5,6) THEN 170 + ABS(CHECKSUM(NEWID())) % 14
-                    WHEN Genre = N'H' AND CategorieID IN (7,8) THEN 176 + ABS(CHECKSUM(NEWID())) % 14
-                    WHEN Genre = N'H' THEN 182 + ABS(CHECKSUM(NEWID())) % 14
-                    WHEN Genre = N'F' AND CategorieID IN (1,2) THEN 155 + ABS(CHECKSUM(NEWID())) % 12
-                    WHEN Genre = N'F' AND CategorieID IN (3,4) THEN 160 + ABS(CHECKSUM(NEWID())) % 12
-                    ELSE 163 + ABS(CHECKSUM(NEWID())) % 12
-                END,
-                PoidsReelKg = CAST(55.0 + ABS(CHECKSUM(NEWID())) % 400 / 10.0 AS DECIMAL(5,1))
-            WHERE TailleCm IS NULL AND Statut = N'Libre' AND Victoires = 0 AND Defaites = 0
+        return new Combattant
+        {
+            Prenom          = prenom,
+            NomFamille      = nom,
+            Genre           = genre,
+            CategorieID     = catId,
+            PaysOrigineID   = paysOrigineId,
+            PaysResidenceID = paysResidenceId,
+            DateNaissance   = dob,
+            PoidsCombatKg   = GetPoidsCombat(genre, catId),
+            TailleCm        = taille,
+            AllongeCm       = allonge,
+            PoidsReelKg     = poidsReel,
+            StylePrincipalID = 1 + rng.Next(7),
 
-            UPDATE Combattant SET AllongeCm = TailleCm + (-4 + ABS(CHECKSUM(NEWID())) % 13)
-            WHERE AllongeCm IS NULL AND TailleCm IS NOT NULL
-            """,
-            new SqlParameter("@paysLocal",    paysResidenceId),
-            new SqlParameter("@anneeDepart",  anneeDepart));
+            StatFrappeDebout  = BaseStat(),
+            StatPuissance     = BaseStat(),
+            StatVitesseMains  = BaseStat(),
+            StatPrecision     = BaseStat(),
+            StatCombosDebout  = BaseStat(),
+            StatKick          = BaseStat(),
+            StatClinic        = BaseStat(),
+            StatEsquive       = BaseStat(),
+            StatBlocage       = BaseStat(),
+            StatFootwork      = BaseStat(),
+            StatWrestling     = BaseStat(),
+            StatTakedown      = BaseStat(),
+            StatAntiTakedown  = BaseStat(),
+            StatControleSol   = BaseStat(),
+            StatJiuJitsu      = BaseStat(),
+            StatSubmission    = BaseStat(),
+            StatEvasionSub    = BaseStat(),
+            StatCardio        = BaseStat(),
+            StatForce         = BaseStat(),
+            StatVitesse       = BaseStat(),
+            StatAgilite       = BaseStat(),
+            StatMentoniere    = BaseStat(),
+            StatRecuperation  = BaseStat(),
+            StatMental        = BaseStat(),
+            StatExperience    = (byte)(20 + rng.Next(15)),
+            StatCoaching      = BaseStat(),
+            StatAdaptation    = BaseStat(),
+
+            Potentiel   = (byte)(40 + rng.Next(41)),
+            Progression = (byte)(50 + rng.Next(31)),
+            Moral       = 50,
+            Fatigue     = 0,
+            Motivation  = (byte)(50 + rng.Next(21)),
+
+            BlessureGravite = 0,
+            SemainesIndispo = 0,
+
+            Statut      = "Libre",
+            Salaire     = valeur / 80,
+            PrimeSigne  = 0,
+            Valeur      = valeur,
+            SousContrat = false,
+
+            Victoires    = 0, Defaites    = 0, Nuls        = 0,
+            VictoiresKO  = 0, VictoiresSub = 0, VictoiresDec = 0,
+            DefaitesKO   = 0, DefaitesSub  = 0,
+
+            DateCreation = DateTime.UtcNow,
+        };
+    }
+
+    private static decimal GetPoidsCombat(string genre, int catId)
+    {
+        if (genre == "H") return catId switch
+        {
+            1 => 52.2m, 2 => 56.7m, 3 => 61.2m, 4 => 65.8m, 5 => 70.3m,
+            6 => 77.1m, 7 => 83.9m, 8 => 93.0m, _ => 120.2m
+        };
+        return catId switch
+        {
+            1 => 52.2m, 2 => 56.7m, 3 => 61.2m, 4 => 65.8m, 5 => 70.3m, _ => 77.1m
+        };
+    }
+
+    private static (short taille, short allonge, decimal poidsReel) GetPhysique(string genre, int catId, Random rng)
+    {
+        short tailleMin, tailleRange;
+        decimal poidsMin, poidsRange;
+
+        if (genre == "H")
+        {
+            (tailleMin, tailleRange, poidsMin, poidsRange) = catId switch
+            {
+                1  => ((short)160, (short)12, 54.0m, 4.0m),
+                2  => ((short)162, (short)13, 59.0m, 4.0m),
+                3  => ((short)165, (short)13, 63.0m, 5.0m),
+                4  => ((short)168, (short)12, 68.0m, 5.0m),
+                5  => ((short)170, (short)13, 73.0m, 5.0m),
+                6  => ((short)175, (short)13, 79.0m, 5.0m),
+                7  => ((short)178, (short)15, 85.0m, 8.0m),
+                8  => ((short)183, (short)13, 94.0m, 8.0m),
+                9  => ((short)185, (short)13, 103.0m, 17.0m),
+                10 => ((short)185, (short)18, 115.0m, 30.0m),
+                _  => ((short)175, (short)13, 79.0m, 5.0m)
+            };
+        }
+        else
+        {
+            (tailleMin, tailleRange, poidsMin, poidsRange) = catId switch
+            {
+                1 => ((short)155, (short)13, 52.0m, 5.0m),
+                2 => ((short)157, (short)13, 57.0m, 4.0m),
+                3 => ((short)160, (short)13, 61.0m, 5.0m),
+                4 => ((short)163, (short)15, 66.0m, 4.0m),
+                5 => ((short)165, (short)13, 70.0m, 5.0m),
+                6 => ((short)168, (short)12, 75.0m, 5.0m),
+                _ => ((short)160, (short)13, 61.0m, 5.0m)
+            };
+        }
+
+        short taille = (short)(tailleMin + rng.Next(tailleRange));
+        short allonge = (short)(taille + rng.Next(13) - 4);
+        decimal poidsReel = poidsMin + Math.Round((decimal)rng.NextDouble() * poidsRange, 1);
+
+        return (taille, allonge, poidsReel);
     }
 
     public async Task GenererOrganisationsLocales(int paysResidenceId, int anneeDepart)
@@ -170,30 +221,30 @@ public class ProspectGenerationService(MmaContext db)
         db.CombatOrganisations.AddRange(
             new CombatOrganisation
             {
-                Nom          = $"{n} Underground Fight Club",
+                Nom           = $"{n} Underground Fight Club",
                 PaysOrigineID = paysResidenceId,
                 AnneeCreation = anneeDepart - 5,
-                Prestige     = 1,
-                Description  = "Combats clandestins organisés dans des entrepôts et garages. Peu de règles, beaucoup d'ambiance.",
-                EstFictive   = true
+                Prestige      = 1,
+                Description   = "Combats clandestins organisés dans des entrepôts et garages. Peu de règles, beaucoup d'ambiance.",
+                EstFictive    = true
             },
             new CombatOrganisation
             {
-                Nom          = $"{n} Brawl Circuit",
+                Nom           = $"{n} Brawl Circuit",
                 PaysOrigineID = paysResidenceId,
                 AnneeCreation = anneeDepart - 3,
-                Prestige     = 1,
-                Description  = "Petite organisation locale qui fait tourner des cartes régulières dans les salles de quartier.",
-                EstFictive   = true
+                Prestige      = 1,
+                Description   = "Petite organisation locale qui fait tourner des cartes régulières dans les salles de quartier.",
+                EstFictive    = true
             },
             new CombatOrganisation
             {
-                Nom          = $"{n} Combat League",
+                Nom           = $"{n} Combat League",
                 PaysOrigineID = paysResidenceId,
                 AnneeCreation = anneeDepart - 1,
-                Prestige     = 2,
-                Description  = "Organisation régionale en pleine croissance, attire les meilleurs combattants du pays.",
-                EstFictive   = true
+                Prestige      = 2,
+                Description   = "Organisation régionale en pleine croissance, attire les meilleurs combattants du pays.",
+                EstFictive    = true
             }
         );
         await db.SaveChangesAsync();
