@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 
 const props = defineProps({
@@ -533,8 +533,8 @@ onMounted(charger)
   gap: 8px;
   margin-bottom: 24px;
   padding: 16px 20px;
-  background: rgba(99,102,241,.08);
-  border: 1px solid rgba(99,102,241,.2);
+  background: rgba(220,38,38,.08);
+  border: 1px solid rgba(220,38,38,.2);
   border-radius: 16px;
 }
 .combat-title {
@@ -570,8 +570,8 @@ onMounted(charger)
   padding: 14px 18px;
   transition: background .2s;
 }
-.fighter-row-main:hover { background: rgba(99,102,241,.08); }
-.fighter-row-main.is-expanded { background: rgba(99,102,241,.1); }
+.fighter-row-main:hover { background: rgba(220,38,38,.08); }
+.fighter-row-main.is-expanded { background: rgba(220,38,38,.1); }
 .fighter-info { display: flex; flex-direction: column; gap: 2px; }
 .fighter-name-row { display: flex; align-items: center; gap: 8px; }
 .fighter-name { font-size: .95rem; font-weight: 600; color: #e2e8f0; }
@@ -608,7 +608,7 @@ onMounted(charger)
 }
 .org-name {
   font-size: .75rem;
-  color: #6366f1;
+  color: #dc2626;
 }
 .tour-badge {
   font-size: .72rem;
@@ -668,8 +668,8 @@ onMounted(charger)
   cursor: pointer;
   transition: all .18s;
 }
-.org-option:hover { background: rgba(99,102,241,.1); border-color: rgba(99,102,241,.3); }
-.org-option.selected { background: rgba(99,102,241,.2); border-color: #6366f1; }
+.org-option:hover { background: rgba(220,38,38,.1); border-color: rgba(220,38,38,.3); }
+.org-option.selected { background: rgba(220,38,38,.2); border-color: #dc2626; }
 .org-option-top { display: flex; justify-content: space-between; align-items: center; }
 .org-nom { font-size: .85rem; font-weight: 600; color: #e2e8f0; }
 .org-prestige { font-size: .75rem; color: #f59e0b; letter-spacing: .05em; }
@@ -686,12 +686,12 @@ onMounted(charger)
   cursor: pointer;
   transition: all .18s;
 }
-.adv-option:hover { background: rgba(99,102,241,.1); border-color: rgba(99,102,241,.3); }
-.adv-option.selected { background: rgba(99,102,241,.2); border-color: #6366f1; }
+.adv-option:hover { background: rgba(220,38,38,.1); border-color: rgba(220,38,38,.3); }
+.adv-option.selected { background: rgba(220,38,38,.2); border-color: #dc2626; }
 .adv-top { display: flex; align-items: center; justify-content: space-between; }
 .adv-name { font-size: .85rem; font-weight: 600; color: #e2e8f0; }
 .adv-meta { display: flex; align-items: center; justify-content: space-between; font-size: .75rem; color: #64748b; margin-top: 2px; }
-.adv-note { font-weight: 700; color: #a5b4fc; font-size: .85rem; }
+.adv-note { font-weight: 700; color: #fca5a5; font-size: .85rem; }
 .adversaire-physique { font-size: .68rem; color: #64748b; }
 .adv-record {
   font-size: .7rem;
@@ -703,8 +703,8 @@ onMounted(charger)
 /* Adversaire stats panel */
 .adv-stats-panel {
   padding: 12px 14px;
-  background: rgba(99,102,241,.06);
-  border: 1px solid rgba(99,102,241,.15);
+  background: rgba(220,38,38,.06);
+  border: 1px solid rgba(220,38,38,.15);
   border-radius: 12px;
 }
 .adv-stats-grid {
@@ -740,14 +740,14 @@ onMounted(charger)
 }
 .stat-fill.strike       { background: #ef4444; }
 .stat-fill.lutte        { background: #f97316; }
-.stat-fill.grappling    { background: #6366f1; }
+.stat-fill.grappling    { background: #dc2626; }
 .stat-fill.conditioning { background: #22c55e; }
 .stat-fill.stamina      { background: #eab308; }
 .stat-fill.mental       { background: #a855f7; }
 .adv-stat-val {
   font-size: .72rem;
   font-weight: 700;
-  color: #a5b4fc;
+  color: #fca5a5;
   min-width: 20px;
   text-align: right;
 }
@@ -807,9 +807,9 @@ onMounted(charger)
   align-items: center;
   gap: 2px;
 }
-.delai-btn:hover { background: rgba(99,102,241,.12); border-color: rgba(99,102,241,.3); }
-.delai-btn.selected { background: rgba(99,102,241,.22); border-color: #6366f1; color: #a5b4fc; }
-.delai-date { font-size: .7rem; color: #6366f1; }
+.delai-btn:hover { background: rgba(220,38,38,.12); border-color: rgba(220,38,38,.3); }
+.delai-btn.selected { background: rgba(220,38,38,.22); border-color: #dc2626; color: #fca5a5; }
+.delai-date { font-size: .7rem; color: #dc2626; }
 
 /* Gameplan selector */
 .plan-gameplan { display: flex; flex-direction: column; gap: 8px; }
@@ -842,12 +842,12 @@ onMounted(charger)
   gap: 2px;
   text-align: center;
 }
-.gameplan-btn:hover   { background: rgba(99,102,241,.10); border-color: rgba(99,102,241,.3); }
-.gameplan-btn.selected { background: rgba(99,102,241,.22); border-color: #6366f1; }
+.gameplan-btn:hover   { background: rgba(220,38,38,.10); border-color: rgba(220,38,38,.3); }
+.gameplan-btn.selected { background: rgba(220,38,38,.22); border-color: #dc2626; }
 .gameplan-icon  { font-size: 1.1rem; }
 .gameplan-name  { font-size: .78rem; font-weight: 700; color: #e2e8f0; }
 .gameplan-desc  { font-size: .62rem; color: #64748b; }
-.gameplan-btn.selected .gameplan-name { color: #a5b4fc; }
+.gameplan-btn.selected .gameplan-name { color: #fca5a5; }
 
 /* Gameplan badge on planned fight */
 .gameplan-badge {
@@ -858,7 +858,7 @@ onMounted(charger)
   margin-top: 1px;
 }
 .gp-striking  { background: rgba(239,68,68,.15);  color: #f87171; }
-.gp-balanced  { background: rgba(99,102,241,.15); color: #a5b4fc; }
+.gp-balanced  { background: rgba(220,38,38,.15); color: #fca5a5; }
 .gp-grappling { background: rgba(34,197,94,.15);  color: #4ade80; }
 .gp-clinch    { background: rgba(249,115,22,.15); color: #fb923c; }
 
@@ -884,17 +884,18 @@ onMounted(charger)
   padding: 9px 22px;
   border-radius: 20px;
   border: none;
-  background: linear-gradient(135deg, #6366f1, #818cf8);
+  background: linear-gradient(135deg, #dc2626, #ef4444);
   color: white;
   font-size: .88rem;
   font-weight: 700;
   cursor: pointer;
   transition: all .18s;
 }
-.btn-planifier:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(99,102,241,.4); }
+.btn-planifier:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(220,38,38,.4); }
 .btn-planifier:disabled { opacity: .45; cursor: not-allowed; }
 
 /* Empty state */
 .empty-state { text-align: center; padding: 48px 24px; color: #475569; }
 .empty-state p { margin-top: 12px; }
 </style>
+

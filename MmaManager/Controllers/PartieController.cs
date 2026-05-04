@@ -261,6 +261,7 @@ public class PartieController(MmaContext db, ProspectGenerationService prospectS
                 e.Nom,
                 paysOrigine?.Nom   ?? "—",
                 paysResidence?.Nom ?? "—",
+                paysResidence?.Code,
                 bg.Nom,
                 bg.Description,
                 bg.Icone,

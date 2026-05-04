@@ -18,6 +18,7 @@ public record EntraineurDto(
     string Nom,
     string PaysOrigineNom,
     string PaysResidenceNom,
+    string? PaysResidenceCode,
     string BackgroundNom,
     string BackgroundDescription,
     string BackgroundIcone,

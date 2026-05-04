@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref, computed, onMounted } from 'vue'
 
 const props = defineProps({
@@ -311,8 +311,8 @@ async function annuler(ep) {
   gap: 12px;
   margin-bottom: 24px;
   padding: 16px 20px;
-  background: rgba(99,102,241,.08);
-  border: 1px solid rgba(99,102,241,.2);
+  background: rgba(220,38,38,.08);
+  border: 1px solid rgba(220,38,38,.2);
   border-radius: 16px;
 }
 .training-header-left {
@@ -350,7 +350,7 @@ async function annuler(ep) {
 .staff-name {
   font-size: .85rem;
   font-weight: 600;
-  color: #a5b4fc;
+  color: #fca5a5;
 }
 .staff-capacity {
   display: flex;
@@ -370,13 +370,13 @@ async function annuler(ep) {
   transition: background .25s;
 }
 .staff-slot.used {
-  background: #6366f1;
-  border-color: #6366f1;
+  background: #dc2626;
+  border-color: #dc2626;
 }
 .staff-count {
   font-size: .82rem;
   font-weight: 600;
-  color: #a5b4fc;
+  color: #fca5a5;
 }
 
 /* Fighter list */
@@ -401,7 +401,7 @@ async function annuler(ep) {
 }
 .fighter-row-main:hover,
 .fighter-row-main.is-expanded {
-  background: rgba(99,102,241,.1);
+  background: rgba(220,38,38,.1);
 }
 .fighter-row-info {
   display: flex;
@@ -432,8 +432,8 @@ async function annuler(ep) {
   font-size: .78rem;
   padding: 3px 10px;
   border-radius: 20px;
-  background: rgba(99,102,241,.2);
-  color: #a5b4fc;
+  background: rgba(220,38,38,.2);
+  color: #fca5a5;
   font-weight: 600;
 }
 .coach-badge {
@@ -490,9 +490,9 @@ async function annuler(ep) {
   font-size: .82rem;
   padding: 6px 14px;
   border-radius: 20px;
-  border: 1px solid rgba(99,102,241,.3);
-  background: rgba(99,102,241,.12);
-  color: #a5b4fc;
+  border: 1px solid rgba(220,38,38,.3);
+  background: rgba(220,38,38,.12);
+  color: #fca5a5;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -500,8 +500,8 @@ async function annuler(ep) {
   transition: all .2s;
 }
 .coach-option:hover {
-  border-color: rgba(99,102,241,.6);
-  background: rgba(99,102,241,.2);
+  border-color: rgba(220,38,38,.6);
+  background: rgba(220,38,38,.2);
 }
 .coach-option.selected {
   border: 2px solid #22c55e;
@@ -522,7 +522,7 @@ async function annuler(ep) {
 }
 .coach-only-tag {
   font-size: .68rem;
-  color: #6366f1;
+  color: #dc2626;
   opacity: .7;
 }
 .coach-type-tag {
@@ -531,7 +531,7 @@ async function annuler(ep) {
   border-radius: 8px;
   font-weight: 700;
 }
-.tag-joueur { background: rgba(99,102,241,.2); color: #a5b4fc; }
+.tag-joueur { background: rgba(220,38,38,.2); color: #fca5a5; }
 .tag-staff  { background: rgba(34,197,94,.15);  color: #4ade80; }
 
 /* Training options */
@@ -554,12 +554,12 @@ async function annuler(ep) {
   text-align: center;
 }
 .training-option:hover:not(:disabled) {
-  background: rgba(99,102,241,.15);
-  border-color: rgba(99,102,241,.4);
+  background: rgba(220,38,38,.15);
+  border-color: rgba(220,38,38,.4);
 }
 .training-option.selected {
-  background: rgba(99,102,241,.25);
-  border-color: #6366f1;
+  background: rgba(220,38,38,.25);
+  border-color: #dc2626;
 }
 .training-option.disabled,
 .training-option:disabled { opacity: .35; cursor: not-allowed; }
@@ -614,14 +614,14 @@ async function annuler(ep) {
 }
 .stat-fill.strike       { background: #ef4444; }
 .stat-fill.lutte        { background: #f97316; }
-.stat-fill.grappling    { background: #6366f1; }
+.stat-fill.grappling    { background: #dc2626; }
 .stat-fill.conditioning { background: #22c55e; }
 .stat-fill.mental       { background: #a855f7; }
 .stat-fill.stamina      { background: #eab308; }
 .stat-val {
   font-size: .72rem;
   font-weight: 700;
-  color: #a5b4fc;
+  color: #fca5a5;
   min-width: 20px;
   text-align: right;
 }
@@ -634,3 +634,4 @@ async function annuler(ep) {
 }
 .empty-state p { margin-top: 12px; }
 </style>
+

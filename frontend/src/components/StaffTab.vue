@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref, computed, onMounted } from 'vue'
 
 const props = defineProps({
@@ -16,7 +16,7 @@ const snackbarColor = ref('error')
 const ROLE_LABELS = {
   CoachStriking:        { label: 'Coach Striking',         icon: '🥊', color: '#ef4444' },
   CoachLutte:           { label: 'Coach Lutte',             icon: '🤼', color: '#f97316' },
-  CoachGrappling:       { label: 'Coach Grappling',         icon: '⛩️', color: '#6366f1' },
+  CoachGrappling:       { label: 'Coach Grappling',         icon: '⛩️', color: '#dc2626' },
   CoachConditioning:    { label: 'Coach Conditionnement',   icon: '🏋️', color: '#22c55e' },
   CoachMental:          { label: 'Coach Mental',            icon: '🧠', color: '#a78bfa' },
   PreparateurPhysique:  { label: 'Préparateur Physique',    icon: '💪', color: '#f59e0b' },
@@ -280,8 +280,8 @@ onMounted(charger)
   gap: 8px;
   margin-bottom: 20px;
   padding: 16px 20px;
-  background: rgba(99,102,241,.08);
-  border: 1px solid rgba(99,102,241,.2);
+  background: rgba(220,38,38,.08);
+  border: 1px solid rgba(220,38,38,.2);
   border-radius: 16px;
 }
 .staff-title { display: block; font-size: 1.15rem; font-weight: 700; color: #e2e8f0; }
@@ -290,8 +290,8 @@ onMounted(charger)
   font-size: .78rem;
   padding: 4px 12px;
   border-radius: 20px;
-  background: rgba(99,102,241,.15);
-  color: #a5b4fc;
+  background: rgba(220,38,38,.15);
+  color: #fca5a5;
   align-self: center;
 }
 
@@ -314,14 +314,14 @@ onMounted(charger)
   cursor: pointer;
   transition: all .18s;
 }
-.sub-tab:hover { background: rgba(99,102,241,.1); color: #a5b4fc; border-color: rgba(99,102,241,.3); }
-.sub-tab.active { background: rgba(99,102,241,.2); color: #a5b4fc; border-color: #6366f1; font-weight: 600; }
+.sub-tab:hover { background: rgba(220,38,38,.1); color: #fca5a5; border-color: rgba(220,38,38,.3); }
+.sub-tab.active { background: rgba(220,38,38,.2); color: #fca5a5; border-color: #dc2626; font-weight: 600; }
 .sub-tab-badge {
   font-size: .72rem;
   padding: 1px 7px;
   border-radius: 10px;
-  background: rgba(99,102,241,.25);
-  color: #a5b4fc;
+  background: rgba(220,38,38,.25);
+  color: #fca5a5;
 }
 
 /* Staff grid */
@@ -339,7 +339,7 @@ onMounted(charger)
   overflow: hidden;
   transition: border-color .18s;
 }
-.staff-card:hover { border-color: rgba(99,102,241,.3); }
+.staff-card:hover { border-color: rgba(220,38,38,.3); }
 .staff-card-header {
   display: flex;
   align-items: center;
@@ -356,7 +356,7 @@ onMounted(charger)
   margin-left: auto;
   font-size: 1.1rem;
   font-weight: 900;
-  color: #a5b4fc;
+  color: #fca5a5;
   min-width: 28px;
   text-align: right;
 }
@@ -411,14 +411,14 @@ onMounted(charger)
   padding: 5px 14px;
   border-radius: 16px;
   border: none;
-  background: linear-gradient(135deg, #6366f1, #818cf8);
+  background: linear-gradient(135deg, #dc2626, #ef4444);
   color: white;
   font-size: .78rem;
   font-weight: 700;
   cursor: pointer;
   transition: all .18s;
 }
-.btn-embaucher:hover { transform: translateY(-1px); box-shadow: 0 3px 12px rgba(99,102,241,.4); }
+.btn-embaucher:hover { transform: translateY(-1px); box-shadow: 0 3px 12px rgba(220,38,38,.4); }
 
 /* Empty state */
 .empty-state { text-align: center; padding: 48px 24px; color: #475569; }
@@ -427,12 +427,13 @@ onMounted(charger)
   margin-top: 16px;
   padding: 8px 22px;
   border-radius: 20px;
-  border: 1px solid rgba(99,102,241,.4);
+  border: 1px solid rgba(220,38,38,.4);
   background: transparent;
-  color: #6366f1;
+  color: #dc2626;
   font-size: .85rem;
   cursor: pointer;
   transition: all .18s;
 }
-.btn-switch:hover { background: rgba(99,102,241,.1); }
+.btn-switch:hover { background: rgba(220,38,38,.1); }
 </style>
+

@@ -4,6 +4,7 @@ import App from './App.vue'
 import router from './router'
 import 'vuetify/styles'
 import '@mdi/font/css/materialdesignicons.css'
+import 'flag-icons/css/flag-icons.min.css'
 import './style.css'
 
 const vuetify = createVuetify({ icons: { defaultSet: 'mdi' } })

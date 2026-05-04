@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref, onMounted } from 'vue'
 
 const props = defineProps({
@@ -141,8 +141,8 @@ onMounted(charger)
 .finances-header {
   margin-bottom: 24px;
   padding: 16px 20px;
-  background: rgba(99,102,241,.08);
-  border: 1px solid rgba(99,102,241,.2);
+  background: rgba(220,38,38,.08);
+  border: 1px solid rgba(220,38,38,.2);
   border-radius: 16px;
 }
 .finances-title  { display: block; font-size: 1.15rem; font-weight: 700; color: #e2e8f0; }
@@ -241,3 +241,4 @@ onMounted(charger)
 .projection-warn  { font-size: .82rem; color: #ef4444; font-weight: 600; margin-top: 4px; }
 .projection-warn.warning { color: #f59e0b; }
 </style>
+
