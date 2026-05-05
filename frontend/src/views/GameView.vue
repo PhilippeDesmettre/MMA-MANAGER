@@ -491,6 +491,12 @@ function formatMoney(val) { return Number(val ?? 0).toLocaleString('fr-FR') }
             <div v-if="c.blessureZone" class="combat-injury">
               🏥 Blessure : {{ c.blessureZone }} — Indisponible {{ c.semainesIndispo }} tour{{ c.semainesIndispo > 1 ? 's' : '' }}
             </div>
+            <div v-if="c.nouvelleRivalite" class="combat-rivalry-new">
+              🔥 Nouvelle rivalité ! {{ c.rivaliteRaison }}
+            </div>
+            <div v-else-if="c.rivaliteIntensite" class="combat-rivalry-existing">
+              🔥 Rivalité intensité {{ c.rivaliteIntensite }}/5 — {{ c.rivaliteRaison }}
+            </div>
           </div>
           <div class="finance-summary">
             <div class="finance-title">💰 Bilan financier du mois</div>
@@ -1238,6 +1244,8 @@ function formatMoney(val) { return Number(val ?? 0).toLocaleString('fr-FR') }
 .bourse-draw { color: #f59e0b; }
 .bourse-loss { color: #f97316; }
 .combat-injury { color: #ef4444; font-size: .82rem; margin: 4px 8px 8px; padding: 4px 8px; background: rgba(239,68,68,.08); border-radius: 6px; }
+.combat-rivalry-new { color: #f59e0b; font-size: .82rem; margin-top: 6px; padding: 4px 8px; background: rgba(245,158,11,.08); border-radius: 6px; font-weight: 600; }
+.combat-rivalry-existing { color: #f59e0b; font-size: .78rem; margin-top: 4px; }
 
 /* ── Finance summary ────────────────────────────────────────── */
 .finance-summary { margin-top: 16px; padding: 12px 14px; border-radius: 10px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06); }

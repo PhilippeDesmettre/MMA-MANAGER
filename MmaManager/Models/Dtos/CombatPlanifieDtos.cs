@@ -105,5 +105,8 @@ public record CombatSimuleDto(
     IReadOnlyList<RoundDetailDto> Rounds,
     byte?   BlessureGravite,
     string? BlessureZone,
-    short?  SemainesIndispo
+    short?  SemainesIndispo,
+    bool    NouvelleRivalite,
+    byte?   RivaliteIntensite,
+    string? RivaliteRaison
 );

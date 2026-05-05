@@ -299,6 +299,22 @@ using (var scope = app.Services.CreateScope())
         );
     """);
 
+    // Table Rivalite
+    db.Database.ExecuteSqlRaw("""
+        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Rivalite' AND type = 'U')
+        CREATE TABLE Rivalite (
+            RivaliteID        INT IDENTITY(1,1) PRIMARY KEY,
+            PartieID          INT NOT NULL REFERENCES Partie(PartieID) ON DELETE CASCADE,
+            Combattant1ID     INT NOT NULL REFERENCES Combattant(CombattantID),
+            Combattant2ID     INT NOT NULL REFERENCES Combattant(CombattantID),
+            Intensite         TINYINT NOT NULL DEFAULT 1,
+            NbConfrontations  TINYINT NOT NULL DEFAULT 1,
+            TourCreation      INT NOT NULL,
+            TourDernierCombat INT NOT NULL,
+            Raison            NVARCHAR(200) NULL
+        );
+    """);
+
     // Colonne StaffPartieID dans EntrainementPlanifie (ajoutée si absente — NO ACTION pour éviter cycle cascade)
     db.Database.ExecuteSqlRaw("""
         IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('EntrainementPlanifie') AND name = 'StaffPartieID')

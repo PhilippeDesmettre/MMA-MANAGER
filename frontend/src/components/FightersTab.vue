@@ -367,6 +367,20 @@ onMounted(() => { loadEcurie(); loadDisponibles() })
           </div>
         </div>
 
+        <div v-if="dialogFighter.rivalites?.length > 0" class="rivalites-section">
+          <span class="section-title">🔥 Rivalités</span>
+          <div v-for="r in dialogFighter.rivalites" :key="r.rivaliteID" class="rivalite-card">
+            <div class="rivalite-header">
+              <span class="rivalite-adversaire">VS {{ r.adversaireNom }}</span>
+              <span class="rivalite-intensite">{{ '🔥'.repeat(r.intensite) }}{{ '◾'.repeat(5 - r.intensite) }}</span>
+            </div>
+            <div class="rivalite-details">
+              <span class="rivalite-confrontations">{{ r.nbConfrontations }} confrontation{{ r.nbConfrontations > 1 ? 's' : '' }}</span>
+              <span v-if="r.raison" class="rivalite-raison">{{ r.raison }}</span>
+            </div>
+          </div>
+        </div>
+
         <div class="dialog-section-title">🏆 Bilan sportif</div>
         <div class="dialog-record-block">
           <div class="dialog-record-col record-win">
@@ -770,4 +784,14 @@ onMounted(() => { loadEcurie(); loadDisponibles() })
   border-radius: 3px;
   transition: width .4s ease;
 }
+
+.rivalites-section { margin-top: 16px; }
+.section-title { font-size: .75rem; font-weight: 700; color: #f59e0b; letter-spacing: .05em; text-transform: uppercase; display: block; margin-bottom: 8px; }
+.rivalite-card { background: rgba(245,158,11,.06); border: 1px solid rgba(245,158,11,.15); border-radius: 8px; padding: 10px 14px; margin-bottom: 6px; }
+.rivalite-header { display: flex; justify-content: space-between; align-items: center; }
+.rivalite-adversaire { font-weight: 700; font-size: .85rem; color: #e2e8f0; }
+.rivalite-intensite { font-size: .9rem; }
+.rivalite-details { display: flex; gap: 12px; margin-top: 4px; }
+.rivalite-confrontations { font-size: .75rem; color: #94a3b8; }
+.rivalite-raison { font-size: .75rem; color: #f59e0b; font-style: italic; }
 </style>

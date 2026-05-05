@@ -67,7 +67,7 @@ public class CombatSimulationService
 
     public SimResultat SimulerCombat(
         Combattant notre, Combattant adverse, string orgNom,
-        string gameplan, Random rng, bool isTitleFight = false)
+        string gameplan, Random rng, bool isTitleFight = false, byte rivaliteIntensite = 0)
     {
         double Bruit() => (rng.NextDouble() + rng.NextDouble() - 1.0) * 12.0;
 
@@ -119,6 +119,11 @@ public class CombatSimulationService
 
         double koMult  = approche == "Striking"  ? 1.40 : approche == "Grappling" ? 0.65 : approche == "Clinch" ? 0.85 : 1.0;
         double subMult = approche == "Grappling" ? 1.45 : approche == "Striking"  ? 0.55 : approche == "Clinch" ? 0.80 : 1.0;
+
+        double rivalryKoMult = rivaliteIntensite > 0 ? 1.0 + rivaliteIntensite * 0.05 : 1.0;
+        double rivalryBoost  = rivaliteIntensite * 3.0;
+        koMult  *= rivalryKoMult;
+        subMult *= rivalryKoMult;
 
         // Probabilités de takedown (calculées une fois)
         double tdN = notre.StatTakedown   / (double)(notre.StatTakedown   + adverse.StatAntiTakedown + 1);
@@ -227,6 +232,9 @@ public class CombatSimulationService
                         actionsRound.Add(NarratifSol(notre, adverse, seqScoreN, seqScoreA, rng));
                         break;
                 }
+
+                seqScoreN += rivalryBoost;
+                seqScoreA += rivalryBoost;
 
                 scoreRoundN += seqScoreN;
                 scoreRoundA += seqScoreA;

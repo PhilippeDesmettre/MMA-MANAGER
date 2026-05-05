@@ -36,6 +36,19 @@ public class TurnAdvancementService(
             .Include(cp => cp.Organisation)
             .ToListAsync();
 
+        var rivaliteIdsImpliques = combatsDuTour
+            .SelectMany(c => new[] { c.CombattantID, c.AdversaireID })
+            .Distinct()
+            .ToList();
+
+        var rivalitesPartie = await db.Rivalites
+            .Where(r => r.PartieID == partie.PartieID
+                     && (rivaliteIdsImpliques.Contains(r.Combattant1ID)
+                      || rivaliteIdsImpliques.Contains(r.Combattant2ID)))
+            .Include(r => r.Combattant1)
+            .Include(r => r.Combattant2)
+            .ToListAsync();
+
         var combatsResultats = new List<CombatSimuleDto>();
 
         foreach (var combat in combatsDuTour)
@@ -44,7 +57,14 @@ public class TurnAdvancementService(
             var adverse = combat.Adversaire!;
             var orgNom  = combat.Organisation!.Nom;
 
-            var sim = combatService.SimulerCombat(notre, adverse, orgNom, combat.Gameplan, rng, isTitleFight: false);
+            int idMin = Math.Min(notre.CombattantID, adverse.CombattantID);
+            int idMax = Math.Max(notre.CombattantID, adverse.CombattantID);
+            var rivalite = rivalitesPartie
+                .FirstOrDefault(r => r.Combattant1ID == idMin && r.Combattant2ID == idMax);
+            byte intensiteRiv = rivalite?.Intensite ?? 0;
+
+            var sim = combatService.SimulerCombat(notre, adverse, orgNom, combat.Gameplan, rng,
+                isTitleFight: false, rivaliteIntensite: intensiteRiv);
 
             if (sim.EstNul)
             {
@@ -87,6 +107,67 @@ public class TurnAdvancementService(
                 adverse.BlessureZone    = blessA.Zone;
                 adverse.SemainesIndispo = blessA.SemainesIndispo;
             }
+
+            // Rivalités
+            bool    nouvRiv     = false;
+            string? nouvelleRaison = null;
+
+            if (rivalite is not null)
+            {
+                rivalite.NbConfrontations++;
+                rivalite.TourDernierCombat = tourCible;
+                if (rivalite.Intensite < 5)
+                {
+                    rivalite.Intensite++;
+                    if (rivalite.Intensite >= 3)
+                        rivalite.Raison = $"Trilogie épique ({rivalite.NbConfrontations} confrontations)";
+                }
+                intensiteRiv = rivalite.Intensite;
+            }
+            else
+            {
+                bool creer = false;
+
+                if (sim.Methode is "KO" or "TKO")
+                {
+                    creer = rng.NextDouble() < 0.60;
+                    nouvelleRaison = sim.EstVictoire
+                        ? $"{notre.Prenom} {notre.NomFamille} a mis KO {adverse.Prenom} {adverse.NomFamille}"
+                        : $"{adverse.Prenom} {adverse.NomFamille} a mis KO {notre.Prenom} {notre.NomFamille}";
+                }
+                else if (sim.Methode == "Soumission")
+                {
+                    creer = rng.NextDouble() < 0.40;
+                    nouvelleRaison = "Soumission controversée";
+                }
+                else if (sim.Methode.Contains("Décision"))
+                {
+                    creer = rng.NextDouble() < 0.30;
+                    nouvelleRaison = "Décision serrée, les deux combattants veulent un rematch";
+                }
+
+                if (creer)
+                {
+                    db.Rivalites.Add(new Rivalite
+                    {
+                        PartieID          = partie.PartieID,
+                        Combattant1ID     = idMin,
+                        Combattant2ID     = idMax,
+                        Intensite         = 1,
+                        NbConfrontations  = 1,
+                        TourCreation      = tourCible,
+                        TourDernierCombat = tourCible,
+                        Raison            = nouvelleRaison
+                    });
+                    nouvRiv      = true;
+                    intensiteRiv = 1;
+                }
+            }
+
+            byte?   rivIntensite = (nouvRiv || rivalite is not null) ? intensiteRiv : null;
+            string? rivRaison    = rivIntensite.HasValue
+                ? (nouvRiv ? nouvelleRaison : rivalite!.Raison ?? $"Rivalité intensité {rivalite!.Intensite}")
+                : null;
 
             db.ResultatsCombat.Add(new ResultatCombatPartie
             {
@@ -146,7 +227,10 @@ public class TurnAdvancementService(
                 sim.Rounds,
                 sim.BlessureNotre?.Gravite,
                 sim.BlessureNotre?.Zone,
-                sim.BlessureNotre?.SemainesIndispo
+                sim.BlessureNotre?.SemainesIndispo,
+                nouvRiv,
+                rivIntensite,
+                rivRaison
             ));
         }
 

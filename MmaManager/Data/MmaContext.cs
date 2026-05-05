@@ -25,6 +25,7 @@ public class MmaContext(DbContextOptions<MmaContext> options) : DbContext(option
     public DbSet<StaffDisponible>       StaffDisponibles        { get; set; }
     public DbSet<StaffPartie>           StaffParties            { get; set; }
     public DbSet<ContratOrganisation>   ContratsOrganisation    { get; set; }
+    public DbSet<Rivalite>              Rivalites               { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -176,6 +177,32 @@ public class MmaContext(DbContextOptions<MmaContext> options) : DbContext(option
             .WithMany()
             .HasForeignKey(c => c.OrganisationID)
             .OnDelete(DeleteBehavior.Restrict);
+
+        // Rivalite -> Partie
+        modelBuilder.Entity<Rivalite>()
+            .HasOne(r => r.Partie)
+            .WithMany()
+            .HasForeignKey(r => r.PartieID)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // Rivalite -> Combattant1
+        modelBuilder.Entity<Rivalite>()
+            .HasOne(r => r.Combattant1)
+            .WithMany()
+            .HasForeignKey(r => r.Combattant1ID)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Rivalite -> Combattant2
+        modelBuilder.Entity<Rivalite>()
+            .HasOne(r => r.Combattant2)
+            .WithMany()
+            .HasForeignKey(r => r.Combattant2ID)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Rivalite : unicité (PartieID, Combattant1ID, Combattant2ID)
+        modelBuilder.Entity<Rivalite>()
+            .HasIndex(r => new { r.PartieID, r.Combattant1ID, r.Combattant2ID })
+            .IsUnique();
 
         // Gym n'a pas de navigation vers Pays, EF ne crée pas de relation automatique
     }

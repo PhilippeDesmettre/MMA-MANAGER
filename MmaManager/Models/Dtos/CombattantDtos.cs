@@ -1,5 +1,14 @@
 namespace MmaManager.Models.Dtos;
 
+public record RivaliteDto(
+    int     RivaliteID,
+    int     AdversaireID,
+    string  AdversaireNom,
+    byte    Intensite,
+    byte    NbConfrontations,
+    string? Raison
+);
+
 public record FinancesCombattantDto(
     int     CombattantID,
     string  Prenom,
@@ -90,5 +99,7 @@ public record CombattantDetailDto(
     short   SemainesIndispo,
     // Développement
     string  PhaseCarriere,
-    byte    Potentiel
+    byte    Potentiel,
+    // Rivalités
+    IReadOnlyList<RivaliteDto> Rivalites
 );

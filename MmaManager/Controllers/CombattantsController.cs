@@ -66,7 +66,7 @@ public class CombattantsController(MmaContext db) : ControllerBase
             .ThenBy(c => c.Prenom)
             .ToListAsync();
 
-        return Ok(combattants.Select(c => ToDetailDto(c, references, partie.AnneeActuelle, partie.MoisActuel)));
+        return Ok(combattants.Select(c => ToDetailDto(c, references, partie.AnneeActuelle, partie.MoisActuel, [])));
     }
 
     [HttpGet("ecurie")]
@@ -86,7 +86,14 @@ public class CombattantsController(MmaContext db) : ControllerBase
             .Select(cp => cp.Combattant!)
             .ToListAsync();
 
-        return Ok(combattants.Select(c => ToDetailDto(c, references, partie.AnneeActuelle, partie.MoisActuel)));
+        var rivalites = await db.Rivalites
+            .Where(r => r.PartieID == partie.PartieID)
+            .Include(r => r.Combattant1)
+            .Include(r => r.Combattant2)
+            .AsNoTracking()
+            .ToListAsync();
+
+        return Ok(combattants.Select(c => ToDetailDto(c, references, partie.AnneeActuelle, partie.MoisActuel, rivalites)));
     }
 
     [HttpGet("{id:int}")]
@@ -101,7 +108,19 @@ public class CombattantsController(MmaContext db) : ControllerBase
 
         if (combattant is null) return NotFound();
 
-        return Ok(ToDetailDto(combattant, references, partie?.AnneeActuelle ?? DateTime.Today.Year, partie?.MoisActuel ?? DateTime.Today.Month));
+        List<Rivalite> rivalites = [];
+        if (partie is not null)
+        {
+            rivalites = await db.Rivalites
+                .Where(r => r.PartieID == partie.PartieID
+                         && (r.Combattant1ID == id || r.Combattant2ID == id))
+                .Include(r => r.Combattant1)
+                .Include(r => r.Combattant2)
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
+        return Ok(ToDetailDto(combattant, references, partie?.AnneeActuelle ?? DateTime.Today.Year, partie?.MoisActuel ?? DateTime.Today.Month, rivalites));
     }
 
     [HttpPost("{id:int}/recruter")]
@@ -219,7 +238,7 @@ public class CombattantsController(MmaContext db) : ControllerBase
 
     private static int NoteGlobale(Combattant c) => c.Overall;
 
-    private static CombattantDetailDto ToDetailDto(Combattant c, CombattantReferenceData references, int anneeJeu, int moisJeu)
+    private static CombattantDetailDto ToDetailDto(Combattant c, CombattantReferenceData references, int anneeJeu, int moisJeu, IReadOnlyList<Rivalite> rivalites)
     {
         var pays = GetPays(c, references);
         int age  = CalculerAge(c.DateNaissance, anneeJeu, moisJeu);
@@ -233,6 +252,22 @@ public class CombattantsController(MmaContext db) : ControllerBase
         };
 
         byte potentielAffiche = (byte)(c.Potentiel / 5 * 5);
+
+        var rivalitesDto = rivalites
+            .Where(r => r.Combattant1ID == c.CombattantID || r.Combattant2ID == c.CombattantID)
+            .Select(r =>
+            {
+                bool isC1 = r.Combattant1ID == c.CombattantID;
+                var autre = isC1 ? r.Combattant2! : r.Combattant1!;
+                return new RivaliteDto(
+                    r.RivaliteID,
+                    autre.CombattantID,
+                    $"{autre.Prenom} {autre.NomFamille}",
+                    r.Intensite,
+                    r.NbConfrontations,
+                    r.Raison);
+            })
+            .ToList();
 
         return new CombattantDetailDto(
             c.CombattantID,
@@ -288,7 +323,8 @@ public class CombattantsController(MmaContext db) : ControllerBase
             c.BlessureZone,
             c.SemainesIndispo,
             phase,
-            potentielAffiche
+            potentielAffiche,
+            rivalitesDto
         );
     }
 }
