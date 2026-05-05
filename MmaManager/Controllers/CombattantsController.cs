@@ -93,7 +93,62 @@ public class CombattantsController(MmaContext db) : ControllerBase
             .AsNoTracking()
             .ToListAsync();
 
-        return Ok(combattants.Select(c => ToDetailDto(c, references, partie.AnneeActuelle, partie.MoisActuel, rivalites)));
+        var ecurieCombattantIds = combattants.Select(c => c.CombattantID).ToList();
+
+        var rankingEntries = await db.RankingEntries
+            .Where(r => r.PartieID == partie.PartieID && ecurieCombattantIds.Contains(r.CombattantID) && r.Rang > 0)
+            .Include(r => r.Organisation)
+            .AsNoTracking()
+            .ToListAsync();
+
+        var ceintures = await db.ChampionCeintures
+            .Where(c => c.PartieID == partie.PartieID && c.CombattantID != null
+                     && ecurieCombattantIds.Contains(c.CombattantID!.Value))
+            .Include(c => c.Organisation)
+            .AsNoTracking()
+            .ToListAsync();
+
+        var mondialPoints = await db.RankingEntries
+            .Where(r => r.PartieID == partie.PartieID)
+            .GroupBy(r => new { r.Genre, r.CategorieID, r.CombattantID })
+            .Select(g => new { g.Key.Genre, g.Key.CategorieID, g.Key.CombattantID, Total = g.Sum(r => r.PointsMondiaux) })
+            .ToListAsync();
+
+        var mondialGrouped = mondialPoints
+            .GroupBy(x => (x.Genre, x.CategorieID))
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.Total).Select(x => x.CombattantID).ToList());
+
+        var rankingLookup = new Dictionary<int, (string? meilleurRang, int? rangMondial)>();
+        foreach (var c in combattants)
+        {
+            var ceinture = ceintures.FirstOrDefault(cc => cc.CombattantID == c.CombattantID);
+            string? meilleurRang = null;
+            if (ceinture is not null)
+                meilleurRang = $"🏆 Champion {ceinture.Organisation!.Nom}";
+            else
+            {
+                var best = rankingEntries.Where(r => r.CombattantID == c.CombattantID).MinBy(r => r.Rang);
+                if (best is not null)
+                    meilleurRang = $"#{best.Rang} {best.Organisation!.Nom}";
+            }
+
+            int? rangMondial = null;
+            var key = (c.Genre, c.CategorieID);
+            if (mondialGrouped.TryGetValue(key, out var list))
+            {
+                var pos = list.IndexOf(c.CombattantID);
+                if (pos >= 0 && pos < 15) rangMondial = pos + 1;
+            }
+
+            rankingLookup[c.CombattantID] = (meilleurRang, rangMondial);
+        }
+
+        return Ok(combattants.Select(c =>
+        {
+            var (meilleurRang, rangMondial) = rankingLookup.GetValueOrDefault(c.CombattantID);
+            return ToDetailDto(c, references, partie.AnneeActuelle, partie.MoisActuel,
+                rivalites, meilleurRang, rangMondial);
+        }));
     }
 
     [HttpGet("{id:int}")]
@@ -109,6 +164,9 @@ public class CombattantsController(MmaContext db) : ControllerBase
         if (combattant is null) return NotFound();
 
         List<Rivalite> rivalites = [];
+        string? meilleurRangOrga = null;
+        int?    rangMondial      = null;
+
         if (partie is not null)
         {
             rivalites = await db.Rivalites
@@ -118,9 +176,49 @@ public class CombattantsController(MmaContext db) : ControllerBase
                 .Include(r => r.Combattant2)
                 .AsNoTracking()
                 .ToListAsync();
+
+            var ceinture = await db.ChampionCeintures
+                .Where(c => c.PartieID == partie.PartieID && c.CombattantID == id)
+                .Include(c => c.Organisation)
+                .AsNoTracking()
+                .FirstOrDefaultAsync();
+
+            if (ceinture is not null)
+                meilleurRangOrga = $"🏆 Champion {ceinture.Organisation!.Nom}";
+            else
+            {
+                var best = await db.RankingEntries
+                    .Where(r => r.PartieID == partie.PartieID && r.CombattantID == id && r.Rang > 0)
+                    .Include(r => r.Organisation)
+                    .AsNoTracking()
+                    .OrderBy(r => r.Rang)
+                    .FirstOrDefaultAsync();
+                if (best is not null)
+                    meilleurRangOrga = $"#{best.Rang} {best.Organisation!.Nom}";
+            }
+
+            var totalPoints = await db.RankingEntries
+                .Where(r => r.PartieID == partie.PartieID && r.CombattantID == id)
+                .SumAsync(r => r.PointsMondiaux);
+
+            if (totalPoints > 0 && combattant is not null)
+            {
+                var nbMieux = await db.RankingEntries
+                    .Where(r => r.PartieID == partie.PartieID
+                             && r.Genre == combattant.Genre
+                             && r.CategorieID == combattant.CategorieID)
+                    .GroupBy(r => r.CombattantID)
+                    .Where(g => g.Sum(r => r.PointsMondiaux) > totalPoints)
+                    .CountAsync();
+                var rang = nbMieux + 1;
+                if (rang <= 15) rangMondial = rang;
+            }
         }
 
-        return Ok(ToDetailDto(combattant, references, partie?.AnneeActuelle ?? DateTime.Today.Year, partie?.MoisActuel ?? DateTime.Today.Month, rivalites));
+        return Ok(ToDetailDto(combattant!, references,
+            partie?.AnneeActuelle ?? DateTime.Today.Year,
+            partie?.MoisActuel ?? DateTime.Today.Month,
+            rivalites, meilleurRangOrga, rangMondial));
     }
 
     [HttpPost("{id:int}/recruter")]
@@ -238,7 +336,13 @@ public class CombattantsController(MmaContext db) : ControllerBase
 
     private static int NoteGlobale(Combattant c) => c.Overall;
 
-    private static CombattantDetailDto ToDetailDto(Combattant c, CombattantReferenceData references, int anneeJeu, int moisJeu, IReadOnlyList<Rivalite> rivalites)
+    private static CombattantDetailDto ToDetailDto(
+        Combattant c,
+        CombattantReferenceData references,
+        int anneeJeu, int moisJeu,
+        IReadOnlyList<Rivalite> rivalites,
+        string? meilleurRangOrga = null,
+        int? rangMondial = null)
     {
         var pays = GetPays(c, references);
         int age  = CalculerAge(c.DateNaissance, anneeJeu, moisJeu);
@@ -324,7 +428,9 @@ public class CombattantsController(MmaContext db) : ControllerBase
             c.SemainesIndispo,
             phase,
             potentielAffiche,
-            rivalitesDto
+            rivalitesDto,
+            rangMondial,
+            meilleurRangOrga
         );
     }
 }

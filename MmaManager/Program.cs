@@ -47,6 +47,7 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddScoped<CombatSimulationService>();
 builder.Services.AddScoped<TrainingService>();
+builder.Services.AddScoped<RankingService>();
 builder.Services.AddScoped<TurnAdvancementService>();
 builder.Services.AddScoped<ProspectGenerationService>();
 
@@ -312,6 +313,37 @@ using (var scope = app.Services.CreateScope())
             TourCreation      INT NOT NULL,
             TourDernierCombat INT NOT NULL,
             Raison            NVARCHAR(200) NULL
+        );
+    """);
+
+    // Table RankingEntry
+    db.Database.ExecuteSqlRaw("""
+        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'RankingEntry' AND type = 'U')
+        CREATE TABLE RankingEntry (
+            RankingEntryID INT IDENTITY(1,1) PRIMARY KEY,
+            PartieID       INT NOT NULL REFERENCES Partie(PartieID) ON DELETE CASCADE,
+            CombattantID   INT NOT NULL REFERENCES Combattant(CombattantID),
+            OrganisationID INT NOT NULL REFERENCES CombatOrganisation(OrganisationID),
+            Genre          CHAR(1) NOT NULL DEFAULT 'H',
+            CategorieID    INT NOT NULL,
+            Points         INT NOT NULL DEFAULT 0,
+            Rang           INT NOT NULL DEFAULT 0,
+            PointsMondiaux INT NOT NULL DEFAULT 0
+        );
+    """);
+
+    // Table ChampionCeinture
+    db.Database.ExecuteSqlRaw("""
+        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ChampionCeinture' AND type = 'U')
+        CREATE TABLE ChampionCeinture (
+            ChampionCeintureID INT IDENTITY(1,1) PRIMARY KEY,
+            PartieID           INT NOT NULL REFERENCES Partie(PartieID) ON DELETE CASCADE,
+            OrganisationID     INT NOT NULL REFERENCES CombatOrganisation(OrganisationID),
+            CategorieID        INT NOT NULL,
+            Genre              CHAR(1) NOT NULL DEFAULT 'H',
+            CombattantID       INT NULL REFERENCES Combattant(CombattantID),
+            TourObtention      INT NOT NULL DEFAULT 0,
+            NbDefenses         INT NOT NULL DEFAULT 0
         );
     """);
 

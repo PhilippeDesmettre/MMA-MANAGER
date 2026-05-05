@@ -8,7 +8,8 @@ namespace MmaManager.Services;
 public class TurnAdvancementService(
     MmaContext db,
     CombatSimulationService combatService,
-    TrainingService trainingService)
+    TrainingService trainingService,
+    RankingService rankingService)
 {
     public async Task<TourResultatDto?> AvancerTour(int userId)
     {
@@ -168,6 +169,12 @@ public class TurnAdvancementService(
             string? rivRaison    = rivIntensite.HasValue
                 ? (nouvRiv ? nouvelleRaison : rivalite!.Raison ?? $"Rivalité intensité {rivalite!.Intensite}")
                 : null;
+
+            // ── Classement ───────────────────────────────────────────
+            await rankingService.MettreAJourApresCombat(
+                partie.PartieID, notre.CombattantID, adverse.CombattantID,
+                combat.OrganisationID, sim.EstVictoire, sim.EstNul,
+                sim.Methode, combat.Organisation!.Prestige);
 
             db.ResultatsCombat.Add(new ResultatCombatPartie
             {

@@ -7,6 +7,7 @@ import TrainingTab       from '../components/TrainingTab.vue'
 import CombatPlanifieTab from '../components/CombatPlanifieTab.vue'
 import FinancesTab       from '../components/FinancesTab.vue'
 import StaffTab          from '../components/StaffTab.vue'
+import RankingsTab       from '../components/RankingsTab.vue'
 
 const router = useRouter()
 const { email, authHeaders, clearSession } = useAuth()
@@ -38,7 +39,7 @@ const TABS = [
   { key: 'fights',    icon: '📋', label: 'Planifier combat', available: true  },
   { key: 'finances',  icon: '💰', label: 'Finances',         available: true  },
   { key: 'staff',     icon: '👥', label: 'Staff',            available: true  },
-  { key: 'rankings',  icon: '📊', label: 'Classements',      available: false },
+  { key: 'rankings',  icon: '📊', label: 'Classements',      available: true  },
 ]
 
 const epoqueInfo = computed(() => partie.value ? EPOQUES[partie.value.epoque] ?? {} : {})
@@ -351,6 +352,10 @@ function formatMoney(val) { return Number(val ?? 0).toLocaleString('fr-FR') }
 
           <div v-else-if="tab === 'staff'">
             <StaffTab :auth-headers="authHeaders" />
+          </div>
+
+          <div v-else-if="tab === 'rankings' && partie">
+            <RankingsTab :auth-headers="authHeaders" :partie="partie" />
           </div>
 
           <div v-else-if="tab !== 'dashboard'" class="coming-soon">

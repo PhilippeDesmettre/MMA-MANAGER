@@ -26,6 +26,8 @@ public class MmaContext(DbContextOptions<MmaContext> options) : DbContext(option
     public DbSet<StaffPartie>           StaffParties            { get; set; }
     public DbSet<ContratOrganisation>   ContratsOrganisation    { get; set; }
     public DbSet<Rivalite>              Rivalites               { get; set; }
+    public DbSet<RankingEntry>          RankingEntries          { get; set; }
+    public DbSet<ChampionCeinture>      ChampionCeintures       { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -203,6 +205,27 @@ public class MmaContext(DbContextOptions<MmaContext> options) : DbContext(option
         modelBuilder.Entity<Rivalite>()
             .HasIndex(r => new { r.PartieID, r.Combattant1ID, r.Combattant2ID })
             .IsUnique();
+
+        // RankingEntry
+        modelBuilder.Entity<RankingEntry>()
+            .HasOne(r => r.Combattant).WithMany().HasForeignKey(r => r.CombattantID).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<RankingEntry>()
+            .HasOne(r => r.Organisation).WithMany().HasForeignKey(r => r.OrganisationID).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<RankingEntry>()
+            .HasOne(r => r.Partie).WithMany().HasForeignKey(r => r.PartieID).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<RankingEntry>()
+            .HasIndex(r => new { r.PartieID, r.OrganisationID, r.CombattantID }).IsUnique();
+
+        // ChampionCeinture
+        modelBuilder.Entity<ChampionCeinture>()
+            .HasOne(c => c.Combattant).WithMany().HasForeignKey(c => c.CombattantID)
+            .OnDelete(DeleteBehavior.SetNull).IsRequired(false);
+        modelBuilder.Entity<ChampionCeinture>()
+            .HasOne(c => c.Organisation).WithMany().HasForeignKey(c => c.OrganisationID).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<ChampionCeinture>()
+            .HasOne(c => c.Partie).WithMany().HasForeignKey(c => c.PartieID).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<ChampionCeinture>()
+            .HasIndex(c => new { c.PartieID, c.OrganisationID, c.CategorieID, c.Genre }).IsUnique();
 
         // Gym n'a pas de navigation vers Pays, EF ne crée pas de relation automatique
     }

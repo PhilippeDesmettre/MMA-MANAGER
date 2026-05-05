@@ -101,5 +101,8 @@ public record CombattantDetailDto(
     string  PhaseCarriere,
     byte    Potentiel,
     // Rivalités
-    IReadOnlyList<RivaliteDto> Rivalites
+    IReadOnlyList<RivaliteDto> Rivalites,
+    // Classement
+    int?    RangMondial,
+    string? MeilleurRangOrga
 );

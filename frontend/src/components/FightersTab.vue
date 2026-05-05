@@ -201,6 +201,7 @@ onMounted(() => { loadEcurie(); loadDisponibles() })
                 {{ phaseIcon(f.phaseCarriere) }}
               </span>
               · {{ styleIcon(f.stylePrincipal) }} {{ f.stylePrincipal }}
+              <span v-if="f.meilleurRangOrga" class="rang-badge">{{ f.meilleurRangOrga }}</span>
             </div>
           </v-card-item>
           <v-card-text class="pt-0">
@@ -365,6 +366,9 @@ onMounted(() => { loadEcurie(); loadDisponibles() })
               <div class="potential-fill" :style="{ width: dialogFighter.potentiel + '%' }"></div>
             </div>
           </div>
+          <span v-if="dialogFighter.meilleurRangOrga" class="rang-badge rang-badge-dialog">
+            {{ dialogFighter.meilleurRangOrga }}
+          </span>
         </div>
 
         <div v-if="dialogFighter.rivalites?.length > 0" class="rivalites-section">
@@ -794,4 +798,20 @@ onMounted(() => { loadEcurie(); loadDisponibles() })
 .rivalite-details { display: flex; gap: 12px; margin-top: 4px; }
 .rivalite-confrontations { font-size: .75rem; color: #94a3b8; }
 .rivalite-raison { font-size: .75rem; color: #f59e0b; font-style: italic; }
+
+.rang-badge {
+  font-size: .7rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(245,158,11,.1);
+  color: #f59e0b;
+  font-weight: 600;
+  margin-left: 6px;
+}
+.rang-badge-dialog {
+  font-size: .78rem;
+  padding: 3px 10px;
+  margin-left: 0;
+  white-space: nowrap;
+}
 </style>
