@@ -87,5 +87,8 @@ public record CombattantDetailDto(
     // Blessure
     byte    BlessureGravite,
     string? BlessureZone,
-    short   SemainesIndispo
+    short   SemainesIndispo,
+    // Développement
+    string  PhaseCarriere,
+    byte    Potentiel
 );

@@ -222,6 +222,17 @@ public class CombattantsController(MmaContext db) : ControllerBase
     private static CombattantDetailDto ToDetailDto(Combattant c, CombattantReferenceData references, int anneeJeu, int moisJeu)
     {
         var pays = GetPays(c, references);
+        int age  = CalculerAge(c.DateNaissance, anneeJeu, moisJeu);
+
+        string phase = age switch
+        {
+            < 28  => "Développement",
+            <= 33 => "Pic",
+            <= 38 => "Déclin",
+            _     => "Vétéran"
+        };
+
+        byte potentielAffiche = (byte)(c.Potentiel / 5 * 5);
 
         return new CombattantDetailDto(
             c.CombattantID,
@@ -229,7 +240,7 @@ public class CombattantsController(MmaContext db) : ControllerBase
             c.NomFamille,
             pays?.Nom ?? "-",
             pays?.Code ?? "-",
-            CalculerAge(c.DateNaissance, anneeJeu, moisJeu),
+            age,
             c.Genre,
             c.TailleCm,
             c.AllongeCm,
@@ -275,7 +286,9 @@ public class CombattantsController(MmaContext db) : ControllerBase
             c.StatAdaptation,
             c.BlessureGravite,
             c.BlessureZone,
-            c.SemainesIndispo
+            c.SemainesIndispo,
+            phase,
+            potentielAffiche
         );
     }
 }

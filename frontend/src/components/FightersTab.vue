@@ -142,6 +142,10 @@ function catColor(cat) { return CAT_COLORS[cat] ?? '#dc2626' }
 
 function fighterImg(genre) { return genre === 'F' ? fighterDefaultF : fighterDefault }
 
+function phaseIcon(phase) {
+  return { 'Développement': '📈', 'Pic': '⭐', 'Déclin': '📉', 'Vétéran': '🏛️' }[phase] ?? '❓'
+}
+
 onMounted(() => { loadEcurie(); loadDisponibles() })
 </script>
 
@@ -192,7 +196,11 @@ onMounted(() => { loadEcurie(); loadDisponibles() })
             </div>
             <div class="fighter-meta">
               <span v-if="f.codePays" :class="getFlagClass(f.codePays)" class="flag-sm" />
-              {{ f.nationalite }} · {{ f.age }} ans · {{ styleIcon(f.stylePrincipal) }} {{ f.stylePrincipal }}
+              {{ f.nationalite }} · {{ f.age }} ans
+              <span class="phase-mini" :class="`phase-${f.phaseCarriere?.toLowerCase()}`">
+                {{ phaseIcon(f.phaseCarriere) }}
+              </span>
+              · {{ styleIcon(f.stylePrincipal) }} {{ f.stylePrincipal }}
             </div>
           </v-card-item>
           <v-card-text class="pt-0">
@@ -344,6 +352,18 @@ onMounted(() => { loadEcurie(); loadDisponibles() })
           <div class="dialog-id-item">
             <span class="dialog-id-label">⚖️ Poids réel</span>
             <span class="dialog-id-val">{{ dialogFighter.poidsReelKg ? dialogFighter.poidsReelKg + ' kg' : '—' }}</span>
+          </div>
+        </div>
+
+        <div class="career-phase-section">
+          <div class="career-phase-badge" :class="`phase-${dialogFighter.phaseCarriere?.toLowerCase()}`">
+            {{ phaseIcon(dialogFighter.phaseCarriere) }} {{ dialogFighter.phaseCarriere }}
+          </div>
+          <div class="career-potential">
+            Potentiel estimé : <span class="potential-value">{{ dialogFighter.potentiel }}</span> / 100
+            <div class="potential-bar">
+              <div class="potential-fill" :style="{ width: dialogFighter.potentiel + '%' }"></div>
+            </div>
           </div>
         </div>
 
@@ -706,4 +726,48 @@ onMounted(() => { loadEcurie(); loadDisponibles() })
 .dialog-cost-val { font-size: .92rem; font-weight: 700; color: #f59e0b; }
 .dialog-cost-sal { font-size: .85rem; font-weight: 600; color: #94a3b8; }
 .dialog-actions { padding: 12px 20px 16px; }
+
+/* ── Phase de carrière ───────────────────────────────────── */
+.phase-mini {
+  font-size: .8rem;
+  display: inline-block;
+  margin: 0 2px;
+}
+
+.career-phase-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+
+.career-phase-badge {
+  font-size: .8rem;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.phase-développement { background: rgba(34,197,94,.12);  color: #22c55e; }
+.phase-pic           { background: rgba(245,158,11,.12); color: #f59e0b; }
+.phase-déclin        { background: rgba(239,68,68,.12);  color: #ef4444; }
+.phase-vétéran       { background: rgba(148,163,184,.12); color: #94a3b8; }
+
+.career-potential { flex: 1; font-size: .78rem; color: #64748b; }
+.potential-value  { font-weight: 700; color: #f59e0b; }
+
+.potential-bar {
+  height: 6px;
+  background: rgba(255,255,255,.05);
+  border-radius: 3px;
+  margin-top: 4px;
+  overflow: hidden;
+}
+.potential-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #f59e0b, #22c55e);
+  border-radius: 3px;
+  transition: width .4s ease;
+}
 </style>

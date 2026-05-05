@@ -190,7 +190,8 @@ public class TurnAdvancementService(
                     coach?.CompMental       ?? 30);
             }
 
-            var gains = trainingService.AppliquerEntrainement(c, ep.TypeEntrainement, stats, rng);
+            int age = CalculerAge(c.DateNaissance, partie.AnneeActuelle, partie.MoisActuel);
+            var gains = trainingService.AppliquerEntrainement(c, ep.TypeEntrainement, stats, rng, age);
 
             // Risque de blessure à l'entraînement (3%)
             if (rng.NextDouble() < 0.03)
@@ -229,6 +230,31 @@ public class TurnAdvancementService(
                     cb.BlessureGravite = 0;
                     cb.BlessureZone    = null;
                 }
+            }
+        }
+
+        // ── ÉTAPE 2c : Vieillissement / déclin ───────────────────
+        foreach (var cp in ecurieCombattants)
+        {
+            var cb  = cp.Combattant!;
+            int age = CalculerAge(cb.DateNaissance, partie.AnneeActuelle, partie.MoisActuel);
+
+            if (age > 33)
+            {
+                double declinChance = age > 38 ? 0.30 : 0.15;
+                int    declinMax    = age > 38 ? 2    : 1;
+
+                DeclinStat(() => cb.StatVitesse,      v => cb.StatVitesse      = v, declinChance, declinMax, rng);
+                DeclinStat(() => cb.StatAgilite,      v => cb.StatAgilite      = v, declinChance, declinMax, rng);
+                DeclinStat(() => cb.StatCardio,       v => cb.StatCardio       = v, declinChance, declinMax, rng);
+                DeclinStat(() => cb.StatRecuperation, v => cb.StatRecuperation = v, declinChance, declinMax, rng);
+                DeclinStat(() => cb.StatMentoniere,   v => cb.StatMentoniere   = v, declinChance, declinMax, rng);
+                DeclinStat(() => cb.StatForce,        v => cb.StatForce        = v, declinChance, declinMax, rng);
+                DeclinStat(() => cb.StatVitesseMains, v => cb.StatVitesseMains = v, declinChance, declinMax, rng);
+                DeclinStat(() => cb.StatFootwork,     v => cb.StatFootwork     = v, declinChance, declinMax, rng);
+
+                if (cb.StatExperience < 99)
+                    cb.StatExperience = (byte)Math.Min(99, cb.StatExperience + 1);
             }
         }
 
@@ -321,5 +347,24 @@ public class TurnAdvancementService(
             partie.PrestigeEcurie,
             prestigeAugmente
         );
+    }
+
+    private static int CalculerAge(DateTime dateNaissance, int annee, int mois)
+    {
+        int age = annee - dateNaissance.Year;
+        if (mois < dateNaissance.Month) age--;
+        return Math.Max(0, age);
+    }
+
+    private static void DeclinStat(
+        Func<byte> getter, Action<byte> setter,
+        double chance, int maxLoss, Random rng)
+    {
+        if (rng.NextDouble() < chance)
+        {
+            int loss    = 1 + rng.Next(maxLoss);
+            int current = getter();
+            setter((byte)Math.Max(10, current - loss));
+        }
     }
 }
