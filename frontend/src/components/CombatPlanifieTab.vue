@@ -1,5 +1,7 @@
-﻿<script setup>
+<script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+import fighterDefault  from '../assets/fighter-default.png'
+import fighterDefaultF from '../assets/fighter-default-f.png'
 
 const props = defineProps({
   authHeaders: { type: Function, required: true },
@@ -9,15 +11,16 @@ const props = defineProps({
 const API = 'http://localhost:5219/api'
 
 // ── State ─────────────────────────────────────────────────────
-const ecurie        = ref([])
+const ecurie           = ref([])
 const combatsPlanifies = ref([])
-const organisations = ref([])
-const loading       = ref(true)
+const organisations    = ref([])
+const loading          = ref(true)
+const step             = ref(1)
 
 // Formulaire de planification
-const expanded      = ref(null)     // combattantID ouvert
-const adversaires   = ref([])
-const loadingAdv    = ref(false)
+const expanded    = ref(null)
+const adversaires = ref([])
+const loadingAdv  = ref(false)
 const form = ref({ adversaireID: null, organisationID: null, delaiMois: 1,
   gameplan: { approche: 'Balanced', distance: 'Moyenne', cibles: 'Mixte', rythme: 'Normal' } })
 
@@ -76,7 +79,35 @@ const contratPrevu = computed(() => {
   return { nbCombats, exclusif }
 })
 
+const currentFighter = computed(() =>
+  ecurie.value.find(f => f.combattantID === expanded.value) ?? null
+)
+
+const tapeStats = computed(() => {
+  if (!currentFighter.value || !selectedAdv.value) return []
+  const f = currentFighter.value
+  const a = selectedAdv.value
+  return [
+    { label: '🥊 Striking',   me: f.compStriking,     them: a.compStriking     },
+    { label: '🤼 Lutte',      me: f.compLutte,        them: a.compLutte        },
+    { label: '⛩️ Grappling',  me: f.compGrappling,    them: a.compGrappling    },
+    { label: '🏋️ Condition', me: f.compConditioning, them: a.compConditioning },
+    { label: '💪 Endurance',  me: f.compStamina,      them: a.compStamina      },
+    { label: '🧠 Mental',     me: f.compMental,       them: a.compMental       },
+  ]
+})
+
 const PRESTIGE_STARS = (n) => '★'.repeat(n) + '☆'.repeat(5 - n)
+
+function fighterImg(genre) {
+  return genre === 'F' ? fighterDefaultF : fighterDefault
+}
+
+function statColor(me, them) {
+  if (me > them) return '#22c55e'
+  if (me < them) return '#ef4444'
+  return '#94a3b8'
+}
 
 function combatPourFighter(combattantID) {
   return combatsPlanifies.value.find(c => c.combattantID === combattantID) ?? null
@@ -99,13 +130,13 @@ async function charger() {
   loading.value = true
   try {
     const [ecurieRes, combatsRes, orgsRes] = await Promise.all([
-      fetch(`${API}/combattants/ecurie`,                { headers: props.authHeaders() }),
-      fetch(`${API}/combats-planifies`,                 { headers: props.authHeaders() }),
-      fetch(`${API}/combats-planifies/organisations`,   { headers: props.authHeaders() }),
+      fetch(`${API}/combattants/ecurie`,              { headers: props.authHeaders() }),
+      fetch(`${API}/combats-planifies`,               { headers: props.authHeaders() }),
+      fetch(`${API}/combats-planifies/organisations`, { headers: props.authHeaders() }),
     ])
-    if (ecurieRes.ok)  ecurie.value         = await ecurieRes.json()
+    if (ecurieRes.ok)  ecurie.value          = await ecurieRes.json()
     if (combatsRes.ok) combatsPlanifies.value = await combatsRes.json()
-    if (orgsRes.ok)    organisations.value  = await orgsRes.json()
+    if (orgsRes.ok)    organisations.value   = await orgsRes.json()
   } finally {
     loading.value = false
   }
@@ -142,6 +173,7 @@ function gameplanLabel(gameplanStr) {
 async function ouvrirPlanification(combattantID) {
   if (expanded.value === combattantID) { expanded.value = null; return }
   expanded.value = combattantID
+  step.value = 1
   form.value = { adversaireID: null, organisationID: null, delaiMois: 1,
     gameplan: { approche: 'Balanced', distance: 'Moyenne', cibles: 'Mixte', rythme: 'Normal' } }
   adversaires.value = []
@@ -212,7 +244,7 @@ onMounted(charger)
     </div>
 
     <div v-if="loading" class="text-center py-12">
-      <v-progress-circular indeterminate color="indigo" size="36" />
+      <v-progress-circular indeterminate color="red-darken-2" size="36" />
     </div>
 
     <div v-else-if="ecurie.length === 0" class="empty-state">
@@ -281,228 +313,240 @@ onMounted(charger)
           </div>
         </div>
 
-        <!-- Panneau planification -->
+        <!-- Panneau planification — Stepper 3 étapes -->
         <div v-if="expanded === fighter.combattantID && !combatPourFighter(fighter.combattantID)" class="plan-panel">
 
-          <div class="plan-grid">
-
-            <!-- Organisation -->
-            <div class="plan-section">
-              <span class="plan-label">Organisation</span>
-              <div v-if="organisations.length === 0" class="plan-empty">Aucune organisation disponible</div>
-              <div class="org-list">
-                <div
-                  v-for="org in organisations"
-                  :key="org.organisationID"
-                  class="org-option"
-                  :class="{ selected: form.organisationID === org.organisationID }"
-                  @click="form.organisationID = org.organisationID"
-                >
-                  <div class="org-option-top">
-                    <span class="org-nom">{{ org.nom }}</span>
-                    <span class="org-prestige" :title="`Prestige ${org.prestige}/5`">
-                      {{ PRESTIGE_STARS(org.prestige) }}
-                    </span>
-                  </div>
-                  <div class="org-bourse">
-                    💰 Victoire : {{ formatMoney(org.bourseVictoireMin) }}–{{ formatMoney(org.bourseVictoireMax) }} €
-                  </div>
-                  <span class="org-annee">{{ org.anneeCreation }}{{ org.estFictive ? ' · Circuit local' : '' }}</span>
-                </div>
-              </div>
+          <!-- Stepper header -->
+          <div class="stepper-header">
+            <div class="step-dot" :class="{ active: step >= 1, done: step > 1 }">
+              <span v-if="step > 1">✓</span><span v-else>1</span>
             </div>
-
-            <!-- Adversaire -->
-            <div class="plan-section">
-              <span class="plan-label">Adversaire</span>
-              <div v-if="loadingAdv" class="text-center py-4">
-                <v-progress-circular indeterminate color="indigo" size="20" />
-              </div>
-              <div v-else-if="adversaires.length === 0" class="plan-empty">
-                {{ form.organisationID ? 'Aucun adversaire à ce niveau.' : 'Sélectionne une organisation.' }}
-              </div>
-              <div v-else class="adv-list">
-                <div
-                  v-for="adv in adversaires"
-                  :key="adv.combattantID"
-                  class="adv-option"
-                  :class="{ selected: form.adversaireID === adv.combattantID }"
-                  @click="form.adversaireID = adv.combattantID"
-                >
-                  <div class="adv-top">
-                    <span class="adv-name">{{ adv.prenom }} {{ adv.nomFamille }}</span>
-                    <span class="adv-note">{{ adv.noteGlobale }}</span>
-                  </div>
-                  <div class="adv-meta">
-                    <span>{{ adv.stylePrincipal }}</span>
-                    <span v-if="adv.tailleCm" class="adversaire-physique">
-                      📏 {{ adv.tailleCm }}cm · 💪 {{ adv.allongeCm }}cm · ⚖️ {{ adv.poidsReelKg }}kg
-                    </span>
-                    <span class="adv-record" :class="{
-                      'record-positive': adv.victoires > adv.defaites,
-                      'record-negative': adv.victoires < adv.defaites,
-                      'record-neutral': adv.victoires === adv.defaites
-                    }">{{ adv.victoires }}-{{ adv.defaites }}-{{ adv.nuls }}</span>
-                  </div>
-                </div>
-              </div>
+            <div class="step-line" :class="{ active: step > 1 }"></div>
+            <div class="step-dot" :class="{ active: step >= 2, done: step > 2 }">
+              <span v-if="step > 2">✓</span><span v-else>2</span>
             </div>
-
+            <div class="step-line" :class="{ active: step > 2 }"></div>
+            <div class="step-dot" :class="{ active: step >= 3 }">3</div>
+          </div>
+          <div class="stepper-labels">
+            <span :class="{ 'step-label-active': step === 1 }">Organisation</span>
+            <span :class="{ 'step-label-active': step === 2 }">Adversaire</span>
+            <span :class="{ 'step-label-active': step === 3 }">Gameplan</span>
           </div>
 
-          <!-- Stats de l'adversaire sélectionné -->
-          <div v-if="selectedAdv" class="adv-stats-panel">
-            <span class="plan-label">📊 Stats de {{ selectedAdv.prenom }} {{ selectedAdv.nomFamille }}</span>
-            <div class="adv-stats-grid">
-              <div class="adv-stat-item">
-                <span class="adv-stat-label">🥊 Striking</span>
-                <div class="stat-bar"><div class="stat-fill strike" :style="{ width: selectedAdv.compStriking + '%' }"></div></div>
-                <span class="adv-stat-val">{{ selectedAdv.compStriking }}</span>
-              </div>
-              <div class="adv-stat-item">
-                <span class="adv-stat-label">🤼 Lutte</span>
-                <div class="stat-bar"><div class="stat-fill lutte" :style="{ width: selectedAdv.compLutte + '%' }"></div></div>
-                <span class="adv-stat-val">{{ selectedAdv.compLutte }}</span>
-              </div>
-              <div class="adv-stat-item">
-                <span class="adv-stat-label">⛩️ Grappling</span>
-                <div class="stat-bar"><div class="stat-fill grappling" :style="{ width: selectedAdv.compGrappling + '%' }"></div></div>
-                <span class="adv-stat-val">{{ selectedAdv.compGrappling }}</span>
-              </div>
-              <div class="adv-stat-item">
-                <span class="adv-stat-label">🏋️ Condition</span>
-                <div class="stat-bar"><div class="stat-fill conditioning" :style="{ width: selectedAdv.compConditioning + '%' }"></div></div>
-                <span class="adv-stat-val">{{ selectedAdv.compConditioning }}</span>
-              </div>
-              <div class="adv-stat-item">
-                <span class="adv-stat-label">💪 Endurance</span>
-                <div class="stat-bar"><div class="stat-fill stamina" :style="{ width: selectedAdv.compStamina + '%' }"></div></div>
-                <span class="adv-stat-val">{{ selectedAdv.compStamina }}</span>
-              </div>
-              <div class="adv-stat-item">
-                <span class="adv-stat-label">🧠 Mental</span>
-                <div class="stat-bar"><div class="stat-fill mental" :style="{ width: selectedAdv.compMental + '%' }"></div></div>
-                <span class="adv-stat-val">{{ selectedAdv.compMental }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Délai -->
-          <div class="plan-delai">
-            <span class="plan-label">Date prévue</span>
-            <div class="delai-options">
-              <button
-                v-for="d in [1, 2, 3]"
-                :key="d"
-                class="delai-btn"
-                :class="{ selected: form.delaiMois === d }"
-                @click="form.delaiMois = d"
+          <!-- ── Étape 1 : Organisation ── -->
+          <div v-if="step === 1" class="step-content">
+            <span class="plan-label">Choisir une organisation</span>
+            <div v-if="organisations.length === 0" class="plan-empty">Aucune organisation disponible</div>
+            <div class="org-list">
+              <div
+                v-for="org in organisations"
+                :key="org.organisationID"
+                class="org-option"
+                :class="{ selected: form.organisationID === org.organisationID }"
+                @click="form.organisationID = org.organisationID"
               >
-                Dans {{ d }} mois
-                <span class="delai-date">({{ tourVersDate(partie.tourActuel + d) }})</span>
-              </button>
+                <div class="org-option-top">
+                  <span class="org-nom">{{ org.nom }}</span>
+                  <span class="org-prestige" :title="`Prestige ${org.prestige}/5`">
+                    {{ PRESTIGE_STARS(org.prestige) }}
+                  </span>
+                </div>
+                <div class="org-bourse">
+                  💰 Victoire : {{ formatMoney(org.bourseVictoireMin) }}–{{ formatMoney(org.bourseVictoireMax) }} €
+                </div>
+                <span class="org-annee">{{ org.anneeCreation }}{{ org.estFictive ? ' · Circuit local' : '' }}</span>
+              </div>
+            </div>
+            <div class="step-nav">
+              <button class="btn-annuler" @click="expanded = null">Annuler</button>
+              <button class="btn-next" :disabled="!form.organisationID" @click="step = 2">Adversaire →</button>
             </div>
           </div>
 
-          <!-- Gameplan multi-axes -->
-          <div class="plan-gameplan">
-            <span class="plan-label">Gameplan</span>
-            <div class="gameplan-grid">
+          <!-- ── Étape 2 : Adversaire + Tale of the Tape ── -->
+          <div v-if="step === 2" class="step-content">
+            <div class="tape-layout">
 
-              <div class="gameplan-section">
-                <span class="gameplan-section-label">Approche</span>
-                <div class="gameplan-options">
+              <!-- Adversaire list -->
+              <div class="tape-left">
+                <span class="plan-label">Choisir un adversaire</span>
+                <div v-if="loadingAdv" class="text-center py-4">
+                  <v-progress-circular indeterminate color="red-darken-2" size="20" />
+                </div>
+                <div v-else-if="adversaires.length === 0" class="plan-empty">
+                  Aucun adversaire à ce niveau.
+                </div>
+                <div v-else class="adv-list">
+                  <div
+                    v-for="adv in adversaires"
+                    :key="adv.combattantID"
+                    class="adv-option"
+                    :class="{ selected: form.adversaireID === adv.combattantID }"
+                    @click="form.adversaireID = adv.combattantID"
+                  >
+                    <div class="adv-top">
+                      <span class="adv-name">{{ adv.prenom }} {{ adv.nomFamille }}</span>
+                      <span class="adv-note">{{ adv.noteGlobale }}</span>
+                    </div>
+                    <div class="adv-meta">
+                      <span>{{ adv.stylePrincipal }}</span>
+                      <span v-if="adv.tailleCm" class="adversaire-physique">
+                        📏 {{ adv.tailleCm }}cm · 💪 {{ adv.allongeCm }}cm · ⚖️ {{ adv.poidsReelKg }}kg
+                      </span>
+                      <span class="adv-record" :class="{
+                        'record-positive': adv.victoires > adv.defaites,
+                        'record-negative': adv.victoires < adv.defaites,
+                        'record-neutral':  adv.victoires === adv.defaites
+                      }">{{ adv.victoires }}-{{ adv.defaites }}-{{ adv.nuls }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tale of the Tape -->
+              <div class="tape-right" :class="{ 'tape-placeholder': !selectedAdv }">
+                <span class="plan-label">Tale of the Tape</span>
+
+                <template v-if="selectedAdv">
+                  <div class="tape-fighters">
+                    <div class="tape-fighter-col">
+                      <img :src="fighterImg(fighter.genre)" class="tape-silhouette" />
+                      <span class="tape-fighter-name">{{ fighter.prenom }} {{ fighter.nom }}</span>
+                      <span class="tape-fighter-note">{{ fighter.noteGlobale }}</span>
+                    </div>
+                    <span class="tape-vs">VS</span>
+                    <div class="tape-fighter-col">
+                      <img :src="fighterDefault" class="tape-silhouette tape-silhouette-flip" />
+                      <span class="tape-fighter-name">{{ selectedAdv.prenom }} {{ selectedAdv.nomFamille }}</span>
+                      <span class="tape-fighter-note">{{ selectedAdv.noteGlobale }}</span>
+                    </div>
+                  </div>
+                  <div class="tape-stats">
+                    <div v-for="stat in tapeStats" :key="stat.label" class="tape-stat-row">
+                      <div class="tape-bar-wrap me">
+                        <div class="tape-bar" :style="{ width: stat.me + '%', background: statColor(stat.me, stat.them) }"></div>
+                      </div>
+                      <span class="tape-stat-label">{{ stat.label }}</span>
+                      <div class="tape-bar-wrap them">
+                        <div class="tape-bar" :style="{ width: stat.them + '%', background: statColor(stat.them, stat.me) }"></div>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+                <p v-else class="tape-hint">Sélectionne un adversaire pour voir la comparaison</p>
+              </div>
+
+            </div>
+            <div class="step-nav">
+              <button class="btn-annuler" @click="step = 1">← Organisation</button>
+              <button class="btn-next" :disabled="!form.adversaireID" @click="step = 3">Gameplan →</button>
+            </div>
+          </div>
+
+          <!-- ── Étape 3 : Gameplan + Date + Contrat ── -->
+          <div v-if="step === 3" class="step-content">
+
+            <!-- Résumé du combat -->
+            <div v-if="selectedAdv" class="step3-summary">
+              <span class="step3-name">{{ fighter.prenom }} {{ fighter.nom }}</span>
+              <span class="step3-vs-text">VS</span>
+              <span class="step3-name">{{ selectedAdv.prenom }} {{ selectedAdv.nomFamille }}</span>
+              <span v-if="selectedOrg" class="step3-org">{{ selectedOrg.nom }}</span>
+            </div>
+
+            <!-- Gameplan compact 2×2 -->
+            <div class="gp-compact-grid">
+              <div class="gp-compact-section">
+                <span class="gp-compact-label">Approche</span>
+                <div class="gp-compact-options">
                   <button
                     v-for="opt in approches" :key="opt.value"
-                    class="gameplan-btn"
+                    class="gp-compact-btn"
                     :class="{ selected: form.gameplan.approche === opt.value }"
                     @click="form.gameplan.approche = opt.value"
-                  >
-                    <span class="gameplan-icon">{{ opt.icon }}</span>
-                    <span class="gameplan-name">{{ opt.label }}</span>
-                    <span class="gameplan-desc">{{ opt.desc }}</span>
-                  </button>
+                  >{{ opt.icon }} {{ opt.label }}</button>
                 </div>
               </div>
-
-              <div class="gameplan-section">
-                <span class="gameplan-section-label">Distance</span>
-                <div class="gameplan-options">
+              <div class="gp-compact-section">
+                <span class="gp-compact-label">Distance</span>
+                <div class="gp-compact-options">
                   <button
                     v-for="opt in distances" :key="opt.value"
-                    class="gameplan-btn"
+                    class="gp-compact-btn"
                     :class="{ selected: form.gameplan.distance === opt.value }"
                     @click="form.gameplan.distance = opt.value"
-                  >
-                    <span class="gameplan-icon">{{ opt.icon }}</span>
-                    <span class="gameplan-name">{{ opt.label }}</span>
-                    <span class="gameplan-desc">{{ opt.desc }}</span>
-                  </button>
+                  >{{ opt.icon }} {{ opt.label }}</button>
                 </div>
               </div>
-
-              <div class="gameplan-section">
-                <span class="gameplan-section-label">Cibles</span>
-                <div class="gameplan-options">
+              <div class="gp-compact-section">
+                <span class="gp-compact-label">Cibles</span>
+                <div class="gp-compact-options">
                   <button
                     v-for="opt in cibles_opts" :key="opt.value"
-                    class="gameplan-btn"
+                    class="gp-compact-btn"
                     :class="{ selected: form.gameplan.cibles === opt.value }"
                     @click="form.gameplan.cibles = opt.value"
-                  >
-                    <span class="gameplan-icon">{{ opt.icon }}</span>
-                    <span class="gameplan-name">{{ opt.label }}</span>
-                    <span class="gameplan-desc">{{ opt.desc }}</span>
-                  </button>
+                  >{{ opt.icon }} {{ opt.label }}</button>
                 </div>
               </div>
-
-              <div class="gameplan-section">
-                <span class="gameplan-section-label">Rythme</span>
-                <div class="gameplan-options">
+              <div class="gp-compact-section">
+                <span class="gp-compact-label">Rythme</span>
+                <div class="gp-compact-options">
                   <button
                     v-for="opt in rythmes" :key="opt.value"
-                    class="gameplan-btn"
+                    class="gp-compact-btn"
                     :class="{ selected: form.gameplan.rythme === opt.value }"
                     @click="form.gameplan.rythme = opt.value"
-                  >
-                    <span class="gameplan-icon">{{ opt.icon }}</span>
-                    <span class="gameplan-name">{{ opt.label }}</span>
-                    <span class="gameplan-desc">{{ opt.desc }}</span>
-                  </button>
+                  >{{ opt.icon }} {{ opt.label }}</button>
                 </div>
               </div>
-
             </div>
-          </div>
 
-          <!-- Résumé bourse -->
-          <div v-if="selectedOrg" class="bourse-summary">
-            <span class="plan-label">💰 Contrat</span>
-            <div class="bourse-info">
-              <span class="bourse-item win">Victoire : {{ formatMoney(selectedOrg.bourseVictoireMin) }}–{{ formatMoney(selectedOrg.bourseVictoireMax) }} €</span>
-              <span class="bourse-item lose">Défaite : {{ formatMoney(selectedOrg.bourseDefaiteMin) }}–{{ formatMoney(selectedOrg.bourseDefaiteMax) }} €</span>
+            <!-- Délai -->
+            <div class="plan-delai">
+              <span class="plan-label">Date prévue</span>
+              <div class="delai-options">
+                <button
+                  v-for="d in [1, 2, 3]"
+                  :key="d"
+                  class="delai-btn"
+                  :class="{ selected: form.delaiMois === d }"
+                  @click="form.delaiMois = d"
+                >
+                  Dans {{ d }} mois
+                  <span class="delai-date">({{ tourVersDate(partie.tourActuel + d) }})</span>
+                </button>
+              </div>
             </div>
-            <div v-if="contratPrevu" class="contrat-terms">
-              <span class="contrat-duree">
-                📄 {{ contratPrevu.nbCombats }} combat{{ contratPrevu.nbCombats > 1 ? 's' : '' }}
-              </span>
-              <span class="contrat-exclusif" :class="contratPrevu.exclusif ? 'excl-oui' : 'excl-non'">
-                {{ contratPrevu.exclusif ? '🔒 Exclusif' : '🔓 Non exclusif' }}
-              </span>
-            </div>
-          </div>
 
-          <!-- Action -->
-          <div class="plan-actions">
-            <button class="btn-annuler" @click="expanded = null">Annuler</button>
-            <button
-              class="btn-planifier"
-              :disabled="!form.adversaireID || !form.organisationID || saving"
-              @click="planifier(fighter.combattantID)"
-            >
-              {{ saving ? 'En cours…' : '📋 Planifier le combat' }}
-            </button>
+            <!-- Bourse -->
+            <div v-if="selectedOrg" class="bourse-summary">
+              <span class="plan-label">💰 Contrat</span>
+              <div class="bourse-info">
+                <span class="bourse-item win">Victoire : {{ formatMoney(selectedOrg.bourseVictoireMin) }}–{{ formatMoney(selectedOrg.bourseVictoireMax) }} €</span>
+                <span class="bourse-item lose">Défaite : {{ formatMoney(selectedOrg.bourseDefaiteMin) }}–{{ formatMoney(selectedOrg.bourseDefaiteMax) }} €</span>
+              </div>
+              <div v-if="contratPrevu" class="contrat-terms">
+                <span class="contrat-duree">
+                  📄 {{ contratPrevu.nbCombats }} combat{{ contratPrevu.nbCombats > 1 ? 's' : '' }}
+                </span>
+                <span class="contrat-exclusif" :class="contratPrevu.exclusif ? 'excl-oui' : 'excl-non'">
+                  {{ contratPrevu.exclusif ? '🔒 Exclusif' : '🔓 Non exclusif' }}
+                </span>
+              </div>
+            </div>
+
+            <div class="step-nav">
+              <button class="btn-annuler" @click="step = 2">← Adversaire</button>
+              <button
+                class="btn-planifier"
+                :disabled="!form.adversaireID || !form.organisationID || saving"
+                @click="planifier(fighter.combattantID)"
+              >
+                {{ saving ? 'En cours…' : '📋 Planifier le combat' }}
+              </button>
+            </div>
           </div>
 
         </div>
@@ -639,17 +683,106 @@ onMounted(charger)
   border-top: 1px solid rgba(255,255,255,.05);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
-.plan-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+
+/* Stepper */
+.stepper-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
 }
-@media (max-width: 600px) {
-  .plan-grid { grid-template-columns: 1fr; }
+.step-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.15);
+  background: rgba(255,255,255,.05);
+  color: #475569;
+  font-size: .78rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .2s;
+  flex-shrink: 0;
 }
-.plan-section { display: flex; flex-direction: column; gap: 8px; }
+.step-dot.active { border-color: #dc2626; color: #fca5a5; background: rgba(220,38,38,.15); }
+.step-dot.done   { border-color: #22c55e; color: #22c55e; background: rgba(34,197,94,.12); }
+.step-line {
+  flex: 1;
+  height: 2px;
+  background: rgba(255,255,255,.08);
+  max-width: 80px;
+  transition: background .2s;
+}
+.step-line.active { background: #dc2626; }
+.stepper-labels {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 4px;
+}
+.stepper-labels span {
+  font-size: .65rem;
+  color: #475569;
+  text-align: center;
+  flex: 1;
+  transition: color .2s;
+}
+.stepper-labels span:first-child { text-align: left; }
+.stepper-labels span:last-child  { text-align: right; }
+.step-label-active { color: #fca5a5 !important; }
+
+/* Step content */
+.step-content { display: flex; flex-direction: column; gap: 12px; }
+
+/* Step nav */
+.step-nav {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 4px;
+}
+.btn-annuler {
+  padding: 8px 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,.1);
+  background: transparent;
+  color: #64748b;
+  font-size: .85rem;
+  cursor: pointer;
+  transition: all .18s;
+}
+.btn-annuler:hover { background: rgba(255,255,255,.05); }
+.btn-next {
+  padding: 8px 20px;
+  border-radius: 20px;
+  border: 1px solid rgba(220,38,38,.4);
+  background: rgba(220,38,38,.15);
+  color: #fca5a5;
+  font-size: .85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .18s;
+}
+.btn-next:hover:not(:disabled) { background: rgba(220,38,38,.28); }
+.btn-next:disabled { opacity: .4; cursor: not-allowed; }
+.btn-planifier {
+  padding: 9px 22px;
+  border-radius: 20px;
+  border: none;
+  background: linear-gradient(135deg, #dc2626, #ef4444);
+  color: white;
+  font-size: .88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .18s;
+}
+.btn-planifier:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(220,38,38,.4); }
+.btn-planifier:disabled { opacity: .45; cursor: not-allowed; }
+
+/* Plan shared */
 .plan-label {
   font-size: .72rem;
   color: #64748b;
@@ -668,16 +801,37 @@ onMounted(charger)
   cursor: pointer;
   transition: all .18s;
 }
-.org-option:hover { background: rgba(220,38,38,.1); border-color: rgba(220,38,38,.3); }
+.org-option:hover    { background: rgba(220,38,38,.1); border-color: rgba(220,38,38,.3); }
 .org-option.selected { background: rgba(220,38,38,.2); border-color: #dc2626; }
 .org-option-top { display: flex; justify-content: space-between; align-items: center; }
-.org-nom { font-size: .85rem; font-weight: 600; color: #e2e8f0; }
+.org-nom     { font-size: .85rem; font-weight: 600; color: #e2e8f0; }
 .org-prestige { font-size: .75rem; color: #f59e0b; letter-spacing: .05em; }
-.org-bourse { font-size: .7rem; color: #22c55e; margin-top: 2px; }
-.org-annee { font-size: .72rem; color: #64748b; margin-top: 2px; display: block; }
+.org-bourse  { font-size: .7rem; color: #22c55e; margin-top: 2px; }
+.org-annee   { font-size: .72rem; color: #64748b; margin-top: 2px; display: block; }
 
-/* Adversaire */
-.adv-list { display: flex; flex-direction: column; gap: 5px; max-height: 240px; overflow-y: auto; }
+/* Tale of the Tape layout */
+.tape-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 650px) { .tape-layout { grid-template-columns: 1fr; } }
+
+.tape-left { display: flex; flex-direction: column; gap: 8px; }
+.tape-right {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: rgba(220,38,38,.05);
+  border: 1px solid rgba(220,38,38,.12);
+  border-radius: 12px;
+}
+.tape-placeholder { justify-content: center; align-items: center; min-height: 120px; }
+.tape-hint { font-size: .78rem; color: #475569; text-align: center; margin: 0; }
+
+/* Adversaire list */
+.adv-list { display: flex; flex-direction: column; gap: 5px; max-height: 260px; overflow-y: auto; }
 .adv-option {
   padding: 8px 12px;
   border-radius: 10px;
@@ -686,9 +840,9 @@ onMounted(charger)
   cursor: pointer;
   transition: all .18s;
 }
-.adv-option:hover { background: rgba(220,38,38,.1); border-color: rgba(220,38,38,.3); }
+.adv-option:hover    { background: rgba(220,38,38,.1); border-color: rgba(220,38,38,.3); }
 .adv-option.selected { background: rgba(220,38,38,.2); border-color: #dc2626; }
-.adv-top { display: flex; align-items: center; justify-content: space-between; }
+.adv-top  { display: flex; align-items: center; justify-content: space-between; }
 .adv-name { font-size: .85rem; font-weight: 600; color: #e2e8f0; }
 .adv-meta { display: flex; align-items: center; justify-content: space-between; font-size: .75rem; color: #64748b; margin-top: 2px; }
 .adv-note { font-weight: 700; color: #fca5a5; font-size: .85rem; }
@@ -700,95 +854,150 @@ onMounted(charger)
   border-radius: 8px;
 }
 
-/* Adversaire stats panel */
-.adv-stats-panel {
-  padding: 12px 14px;
-  background: rgba(220,38,38,.06);
-  border: 1px solid rgba(220,38,38,.15);
-  border-radius: 12px;
-}
-.adv-stats-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin-top: 8px;
-}
-@media (max-width: 600px) {
-  .adv-stats-grid { grid-template-columns: repeat(2, 1fr); }
-}
-.adv-stat-item {
+/* Tale of the Tape content */
+.tape-fighters {
   display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+}
+.tape-fighter-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  flex: 1;
+}
+.tape-silhouette {
+  width: 44px;
+  height: 56px;
+  object-fit: contain;
+  opacity: .85;
+}
+.tape-silhouette-flip { transform: scaleX(-1); }
+.tape-fighter-name {
+  font-size: .72rem;
+  color: #e2e8f0;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.2;
+}
+.tape-fighter-note {
+  font-size: .78rem;
+  font-weight: 700;
+  color: #fca5a5;
+}
+.tape-vs {
+  font-size: .8rem;
+  font-weight: 800;
+  color: #f97316;
+  letter-spacing: .1em;
+  flex-shrink: 0;
+  padding-bottom: 20px;
+}
+
+/* Mirror bars */
+.tape-stats { display: flex; flex-direction: column; gap: 6px; }
+.tape-stat-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 6px;
 }
-.adv-stat-label {
-  font-size: .68rem;
-  color: #94a3b8;
-  min-width: 72px;
-}
-.stat-bar {
-  flex: 1;
-  height: 6px;
-  border-radius: 3px;
+.tape-bar-wrap {
+  height: 7px;
   background: rgba(255,255,255,.08);
+  border-radius: 4px;
   overflow: hidden;
+  display: flex;
 }
-.stat-fill {
+.tape-bar-wrap.me   { justify-content: flex-end; }
+.tape-bar-wrap.them { justify-content: flex-start; }
+.tape-bar {
   height: 100%;
-  border-radius: 3px;
-  transition: width .3s ease;
+  border-radius: 4px;
+  transition: width .35s ease;
+  min-width: 2px;
 }
-.stat-fill.strike       { background: #ef4444; }
-.stat-fill.lutte        { background: #f97316; }
-.stat-fill.grappling    { background: #dc2626; }
-.stat-fill.conditioning { background: #22c55e; }
-.stat-fill.stamina      { background: #eab308; }
-.stat-fill.mental       { background: #a855f7; }
-.adv-stat-val {
-  font-size: .72rem;
-  font-weight: 700;
-  color: #fca5a5;
-  min-width: 20px;
-  text-align: right;
+.tape-stat-label {
+  font-size: .6rem;
+  color: #64748b;
+  text-align: center;
+  white-space: nowrap;
+  min-width: 60px;
 }
 
-/* Bourse summary */
-.bourse-summary {
+/* Step 3 summary */
+.step3-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
   padding: 10px 14px;
-  background: rgba(34,197,94,.06);
-  border: 1px solid rgba(34,197,94,.15);
-  border-radius: 12px;
+  background: rgba(220,38,38,.07);
+  border: 1px solid rgba(220,38,38,.15);
+  border-radius: 10px;
 }
-.bourse-info {
-  display: flex;
-  gap: 20px;
-  margin-top: 6px;
-  flex-wrap: wrap;
+.step3-name {
+  font-size: .88rem;
+  font-weight: 700;
+  color: #e2e8f0;
 }
-.bourse-item {
-  font-size: .82rem;
-  font-weight: 600;
+.step3-vs-text {
+  font-size: .72rem;
+  font-weight: 800;
+  color: #f97316;
+  letter-spacing: .1em;
 }
-.bourse-item.win  { color: #22c55e; }
-.bourse-item.lose { color: #f97316; }
-.contrat-terms {
-  display: flex;
-  gap: 12px;
-  margin-top: 6px;
-  flex-wrap: wrap;
+.step3-org {
+  font-size: .75rem;
+  color: #dc2626;
+  margin-left: auto;
 }
-.contrat-duree {
-  font-size: .78rem;
-  color: #94a3b8;
+
+/* Compact gameplan 2×2 */
+.gp-compact-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
 }
-.contrat-exclusif {
-  font-size: .78rem;
-  font-weight: 600;
-  padding: 1px 8px;
+@media (max-width: 500px) { .gp-compact-grid { grid-template-columns: 1fr; } }
+.gp-compact-section { display: flex; flex-direction: column; gap: 5px; }
+.gp-compact-label {
+  font-size: .65rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.gp-compact-options { display: flex; gap: 5px; flex-wrap: wrap; }
+.gp-compact-btn {
+  flex: 1;
+  min-width: 60px;
+  padding: 6px 8px;
   border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.1);
+  background: rgba(255,255,255,.04);
+  color: #94a3b8;
+  font-size: .78rem;
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
 }
-.excl-oui { background: rgba(239,68,68,.15); color: #f87171; }
-.excl-non { background: rgba(34,197,94,.12); color: #4ade80; }
+.gp-compact-btn:hover    { background: rgba(220,38,38,.1); border-color: rgba(220,38,38,.3); color: #e2e8f0; }
+.gp-compact-btn.selected { background: rgba(220,38,38,.22); border-color: #dc2626; color: #fca5a5; font-weight: 600; }
+
+/* Gameplan badge on planned fight */
+.gameplan-badge {
+  font-size: .68rem;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 8px;
+  margin-top: 1px;
+}
+.gp-striking  { background: rgba(239,68,68,.15);  color: #f87171; }
+.gp-balanced  { background: rgba(220,38,38,.15);  color: #fca5a5; }
+.gp-grappling { background: rgba(34,197,94,.15);  color: #4ade80; }
+.gp-clinch    { background: rgba(249,115,22,.15); color: #fb923c; }
 
 /* Délai */
 .plan-delai { display: flex; flex-direction: column; gap: 8px; }
@@ -807,95 +1016,28 @@ onMounted(charger)
   align-items: center;
   gap: 2px;
 }
-.delai-btn:hover { background: rgba(220,38,38,.12); border-color: rgba(220,38,38,.3); }
+.delai-btn:hover    { background: rgba(220,38,38,.12); border-color: rgba(220,38,38,.3); }
 .delai-btn.selected { background: rgba(220,38,38,.22); border-color: #dc2626; color: #fca5a5; }
 .delai-date { font-size: .7rem; color: #dc2626; }
 
-/* Gameplan selector */
-.plan-gameplan { display: flex; flex-direction: column; gap: 8px; }
-.gameplan-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+/* Bourse summary */
+.bourse-summary {
+  padding: 10px 14px;
+  background: rgba(34,197,94,.06);
+  border: 1px solid rgba(34,197,94,.15);
+  border-radius: 12px;
 }
-@media (max-width: 600px) { .gameplan-grid { grid-template-columns: 1fr; } }
-.gameplan-section { display: flex; flex-direction: column; gap: 6px; }
-.gameplan-section-label {
-  font-size: .68rem;
-  color: #94a3b8;
-  text-transform: uppercase;
-  letter-spacing: .06em;
-}
-.gameplan-options { display: flex; gap: 6px; flex-wrap: wrap; }
-.gameplan-btn {
-  flex: 1;
-  min-width: 72px;
-  padding: 8px 8px;
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,.1);
-  background: rgba(255,255,255,.04);
-  cursor: pointer;
-  transition: all .18s;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  text-align: center;
-}
-.gameplan-btn:hover   { background: rgba(220,38,38,.10); border-color: rgba(220,38,38,.3); }
-.gameplan-btn.selected { background: rgba(220,38,38,.22); border-color: #dc2626; }
-.gameplan-icon  { font-size: 1.1rem; }
-.gameplan-name  { font-size: .78rem; font-weight: 700; color: #e2e8f0; }
-.gameplan-desc  { font-size: .62rem; color: #64748b; }
-.gameplan-btn.selected .gameplan-name { color: #fca5a5; }
-
-/* Gameplan badge on planned fight */
-.gameplan-badge {
-  font-size: .68rem;
-  font-weight: 600;
-  padding: 1px 7px;
-  border-radius: 8px;
-  margin-top: 1px;
-}
-.gp-striking  { background: rgba(239,68,68,.15);  color: #f87171; }
-.gp-balanced  { background: rgba(220,38,38,.15); color: #fca5a5; }
-.gp-grappling { background: rgba(34,197,94,.15);  color: #4ade80; }
-.gp-clinch    { background: rgba(249,115,22,.15); color: #fb923c; }
-
-/* Actions */
-.plan-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  padding-top: 4px;
-}
-.btn-annuler {
-  padding: 8px 18px;
-  border-radius: 20px;
-  border: 1px solid rgba(255,255,255,.1);
-  background: transparent;
-  color: #64748b;
-  font-size: .85rem;
-  cursor: pointer;
-  transition: all .18s;
-}
-.btn-annuler:hover { background: rgba(255,255,255,.05); }
-.btn-planifier {
-  padding: 9px 22px;
-  border-radius: 20px;
-  border: none;
-  background: linear-gradient(135deg, #dc2626, #ef4444);
-  color: white;
-  font-size: .88rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all .18s;
-}
-.btn-planifier:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(220,38,38,.4); }
-.btn-planifier:disabled { opacity: .45; cursor: not-allowed; }
+.bourse-info { display: flex; gap: 20px; margin-top: 6px; flex-wrap: wrap; }
+.bourse-item { font-size: .82rem; font-weight: 600; }
+.bourse-item.win  { color: #22c55e; }
+.bourse-item.lose { color: #f97316; }
+.contrat-terms { display: flex; gap: 12px; margin-top: 6px; flex-wrap: wrap; }
+.contrat-duree { font-size: .78rem; color: #94a3b8; }
+.contrat-exclusif { font-size: .78rem; font-weight: 600; padding: 1px 8px; border-radius: 8px; }
+.excl-oui { background: rgba(239,68,68,.15); color: #f87171; }
+.excl-non { background: rgba(34,197,94,.12); color: #4ade80; }
 
 /* Empty state */
 .empty-state { text-align: center; padding: 48px 24px; color: #475569; }
 .empty-state p { margin-top: 12px; }
 </style>
-
