@@ -13,7 +13,7 @@ namespace MmaManager.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class PartieController(MmaContext db, ProspectGenerationService prospectService) : ControllerBase
+public class PartieController(MmaContext db, ProspectGenerationService prospectService, RosterHistoriqueService rosterService) : ControllerBase
 {
     private int CurrentUserId =>
         int.Parse(User.FindFirstValue(JwtRegisteredClaimNames.Sub)
@@ -118,6 +118,7 @@ public class PartieController(MmaContext db, ProspectGenerationService prospectS
 
         await prospectService.GenererProspects(req.PaysResidenceID, anneeDepart);
         await prospectService.GenererOrganisationsLocales(req.PaysResidenceID, anneeDepart);
+        await rosterService.ChargerRoster(partie.PartieID, anneeDepart);
 
         // Recharger avec navigations
         partie.Entraineur = entraineur;

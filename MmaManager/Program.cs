@@ -50,6 +50,7 @@ builder.Services.AddScoped<TrainingService>();
 builder.Services.AddScoped<RankingService>();
 builder.Services.AddScoped<TurnAdvancementService>();
 builder.Services.AddScoped<ProspectGenerationService>();
+builder.Services.AddScoped<RosterHistoriqueService>();
 
 var app = builder.Build();
 

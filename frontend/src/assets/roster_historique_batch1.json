@@ -1,0 +1,557 @@
+{
+  "meta": {
+    "description": "Roster historique MMA Manager — Fighters anonymisés inspirés de combattants réels",
+    "eres": {
+      "pionniers": { "anneeDebut": 1993, "anneeFin": 1999 },
+      "goldenAge": { "anneeDebut": 2000, "anneeFin": 2009 },
+      "modernMMA": { "anneeDebut": 2010, "anneeFin": 2025 }
+    },
+    "notes": "Les stats vont de 0 à 99. Potentiel = plafond absolu. Les classements sont pour le snapshot de départ de l'ère."
+  },
+  "fighters": [
+    {
+      "id": "graça",
+      "prenom": "Ricardo",
+      "nom": "Graça",
+      "pays": "BRA",
+      "genre": "H",
+      "categorieH": 6,
+      "style": "Jiu-Jitsu brésilien",
+      "dateNaissance": "1966-10-12",
+      "tailleCm": 176,
+      "allongeCm": 178,
+      "eres": {
+        "pionniers": {
+          "dateDebut": 1993,
+          "poidsReelKg": 80.0,
+          "poidsCombatKg": 77.1,
+          "stats": {
+            "frappeDebout": 25, "puissance": 30, "vitesseMains": 28, "precision": 30,
+            "combosDebout": 20, "kick": 15, "clinic": 55, "esquive": 45, "blocage": 25,
+            "footwork": 40, "wrestling": 50, "takedown": 55, "antiTakedown": 60,
+            "controleSol": 82, "jiuJitsu": 88, "submission": 90, "evasionSub": 85,
+            "cardio": 72, "force": 55, "vitesse": 62, "agilite": 68,
+            "mentoniere": 65, "recuperation": 70, "mental": 85, "experience": 60,
+            "coaching": 40, "adaptation": 78
+          },
+          "potentiel": 78,
+          "progression": 30,
+          "record": { "v": 1, "d": 0, "n": 0, "ko": 0, "sub": 1, "dec": 0, "dko": 0, "dsub": 0 },
+          "classement": { "organisation": "UFC", "rang": 1, "champion": false }
+        },
+        "goldenAge": {
+          "dateDebut": 1993,
+          "poidsReelKg": 84.0,
+          "poidsCombatKg": 77.1,
+          "stats": {
+            "frappeDebout": 35, "puissance": 35, "vitesseMains": 30, "precision": 38,
+            "combosDebout": 25, "kick": 18, "clinic": 60, "esquive": 48, "blocage": 30,
+            "footwork": 42, "wrestling": 55, "takedown": 58, "antiTakedown": 62,
+            "controleSol": 85, "jiuJitsu": 90, "submission": 92, "evasionSub": 88,
+            "cardio": 60, "force": 50, "vitesse": 50, "agilite": 52,
+            "mentoniere": 60, "recuperation": 55, "mental": 88, "experience": 85,
+            "coaching": 70, "adaptation": 80
+          },
+          "potentiel": 78,
+          "progression": 10,
+          "record": { "v": 14, "d": 2, "n": 0, "ko": 0, "sub": 12, "dec": 2, "dko": 1, "dsub": 0 },
+          "classement": null
+        },
+        "modernMMA": null
+      }
+    },
+    {
+      "id": "shaw",
+      "prenom": "Kenneth",
+      "nom": "Shaw",
+      "pays": "USA",
+      "genre": "H",
+      "categorieH": 8,
+      "style": "Lutte / Soumission",
+      "dateNaissance": "1964-02-11",
+      "tailleCm": 185,
+      "allongeCm": 188,
+      "eres": {
+        "pionniers": {
+          "dateDebut": 1993,
+          "poidsReelKg": 98.0,
+          "poidsCombatKg": 93.0,
+          "stats": {
+            "frappeDebout": 55, "puissance": 68, "vitesseMains": 50, "precision": 48,
+            "combosDebout": 40, "kick": 35, "clinic": 62, "esquive": 42, "blocage": 48,
+            "footwork": 38, "wrestling": 78, "takedown": 72, "antiTakedown": 70,
+            "controleSol": 72, "jiuJitsu": 65, "submission": 72, "evasionSub": 68,
+            "cardio": 65, "force": 80, "vitesse": 60, "agilite": 52,
+            "mentoniere": 72, "recuperation": 68, "mental": 70, "experience": 55,
+            "coaching": 35, "adaptation": 55
+          },
+          "potentiel": 80,
+          "progression": 40,
+          "record": { "v": 3, "d": 1, "n": 0, "ko": 1, "sub": 2, "dec": 0, "dko": 0, "dsub": 1 },
+          "classement": { "organisation": "UFC", "rang": 2, "champion": false }
+        },
+        "goldenAge": {
+          "dateDebut": 1993,
+          "poidsReelKg": 102.0,
+          "poidsCombatKg": 93.0,
+          "stats": {
+            "frappeDebout": 62, "puissance": 70, "vitesseMains": 52, "precision": 52,
+            "combosDebout": 45, "kick": 38, "clinic": 65, "esquive": 44, "blocage": 52,
+            "footwork": 38, "wrestling": 78, "takedown": 72, "antiTakedown": 72,
+            "controleSol": 74, "jiuJitsu": 68, "submission": 74, "evasionSub": 70,
+            "cardio": 55, "force": 75, "vitesse": 50, "agilite": 42,
+            "mentoniere": 65, "recuperation": 52, "mental": 75, "experience": 80,
+            "coaching": 55, "adaptation": 60
+          },
+          "potentiel": 80,
+          "progression": 10,
+          "record": { "v": 26, "d": 10, "n": 2, "ko": 8, "sub": 12, "dec": 6, "dko": 4, "dsub": 3 },
+          "classement": null
+        },
+        "modernMMA": null
+      }
+    },
+    {
+      "id": "severino",
+      "prenom": "Daniel",
+      "nom": "Severino",
+      "pays": "USA",
+      "genre": "H",
+      "categorieH": 9,
+      "style": "Lutte freestyle",
+      "dateNaissance": "1958-06-08",
+      "tailleCm": 188,
+      "allongeCm": 191,
+      "eres": {
+        "pionniers": {
+          "dateDebut": 1993,
+          "poidsReelKg": 115.0,
+          "poidsCombatKg": 120.2,
+          "stats": {
+            "frappeDebout": 28, "puissance": 60, "vitesseMains": 25, "precision": 30,
+            "combosDebout": 18, "kick": 10, "clinic": 55, "esquive": 30, "blocage": 35,
+            "footwork": 25, "wrestling": 88, "takedown": 85, "antiTakedown": 82,
+            "controleSol": 80, "jiuJitsu": 40, "submission": 35, "evasionSub": 55,
+            "cardio": 62, "force": 85, "vitesse": 45, "agilite": 38,
+            "mentoniere": 72, "recuperation": 60, "mental": 75, "experience": 65,
+            "coaching": 30, "adaptation": 45
+          },
+          "potentiel": 75,
+          "progression": 20,
+          "record": { "v": 2, "d": 0, "n": 0, "ko": 0, "sub": 0, "dec": 2, "dko": 0, "dsub": 0 },
+          "classement": { "organisation": "UFC", "rang": 3, "champion": false }
+        },
+        "goldenAge": null,
+        "modernMMA": null
+      }
+    },
+    {
+      "id": "colman",
+      "prenom": "Marcus",
+      "nom": "Colman",
+      "pays": "USA",
+      "genre": "H",
+      "categorieH": 9,
+      "style": "Lutte freestyle",
+      "dateNaissance": "1964-12-20",
+      "tailleCm": 185,
+      "allongeCm": 190,
+      "eres": {
+        "pionniers": {
+          "dateDebut": 1996,
+          "poidsReelKg": 114.0,
+          "poidsCombatKg": 120.2,
+          "stats": {
+            "frappeDebout": 48, "puissance": 78, "vitesseMains": 42, "precision": 40,
+            "combosDebout": 30, "kick": 20, "clinic": 60, "esquive": 35, "blocage": 40,
+            "footwork": 30, "wrestling": 85, "takedown": 88, "antiTakedown": 78,
+            "controleSol": 75, "jiuJitsu": 35, "submission": 30, "evasionSub": 45,
+            "cardio": 55, "force": 88, "vitesse": 58, "agilite": 45,
+            "mentoniere": 68, "recuperation": 55, "mental": 72, "experience": 45,
+            "coaching": 30, "adaptation": 40
+          },
+          "potentiel": 78,
+          "progression": 45,
+          "record": { "v": 6, "d": 2, "n": 0, "ko": 3, "sub": 0, "dec": 3, "dko": 1, "dsub": 1 },
+          "classement": { "organisation": "UFC", "rang": 0, "champion": true }
+        },
+        "goldenAge": {
+          "dateDebut": 1996,
+          "poidsReelKg": 118.0,
+          "poidsCombatKg": 120.2,
+          "stats": {
+            "frappeDebout": 52, "puissance": 75, "vitesseMains": 38, "precision": 42,
+            "combosDebout": 32, "kick": 22, "clinic": 58, "esquive": 30, "blocage": 42,
+            "footwork": 25, "wrestling": 80, "takedown": 82, "antiTakedown": 75,
+            "controleSol": 72, "jiuJitsu": 40, "submission": 35, "evasionSub": 48,
+            "cardio": 42, "force": 78, "vitesse": 42, "agilite": 35,
+            "mentoniere": 55, "recuperation": 40, "mental": 78, "experience": 80,
+            "coaching": 50, "adaptation": 48
+          },
+          "potentiel": 78,
+          "progression": 8,
+          "record": { "v": 16, "d": 9, "n": 0, "ko": 8, "sub": 2, "dec": 6, "dko": 5, "dsub": 2 },
+          "classement": null
+        },
+        "modernMMA": null
+      }
+    },
+    {
+      "id": "dalienko",
+      "prenom": "Dimitri",
+      "nom": "Dalienko",
+      "pays": "RUS",
+      "genre": "H",
+      "categorieH": 9,
+      "style": "Sambo / Combat complet",
+      "dateNaissance": "1976-09-17",
+      "tailleCm": 183,
+      "allongeCm": 190,
+      "eres": {
+        "pionniers": {
+          "dateDebut": 1999,
+          "poidsReelKg": 106.0,
+          "poidsCombatKg": 120.2,
+          "stats": {
+            "frappeDebout": 72, "puissance": 75, "vitesseMains": 74, "precision": 68,
+            "combosDebout": 65, "kick": 55, "clinic": 68, "esquive": 65, "blocage": 62,
+            "footwork": 60, "wrestling": 75, "takedown": 72, "antiTakedown": 74,
+            "controleSol": 72, "jiuJitsu": 68, "submission": 65, "evasionSub": 72,
+            "cardio": 78, "force": 76, "vitesse": 74, "agilite": 70,
+            "mentoniere": 82, "recuperation": 78, "mental": 75, "experience": 35,
+            "coaching": 30, "adaptation": 72
+          },
+          "potentiel": 95,
+          "progression": 82,
+          "record": { "v": 4, "d": 1, "n": 0, "ko": 3, "sub": 1, "dec": 0, "dko": 0, "dsub": 1 },
+          "classement": null
+        },
+        "goldenAge": {
+          "dateDebut": 1999,
+          "poidsReelKg": 108.0,
+          "poidsCombatKg": 120.2,
+          "stats": {
+            "frappeDebout": 88, "puissance": 87, "vitesseMains": 85, "precision": 82,
+            "combosDebout": 80, "kick": 72, "clinic": 82, "esquive": 78, "blocage": 76,
+            "footwork": 72, "wrestling": 90, "takedown": 85, "antiTakedown": 88,
+            "controleSol": 87, "jiuJitsu": 83, "submission": 80, "evasionSub": 85,
+            "cardio": 88, "force": 85, "vitesse": 82, "agilite": 75,
+            "mentoniere": 90, "recuperation": 85, "mental": 88, "experience": 78,
+            "coaching": 55, "adaptation": 88
+          },
+          "potentiel": 95,
+          "progression": 40,
+          "record": { "v": 28, "d": 1, "n": 0, "ko": 12, "sub": 10, "dec": 6, "dko": 0, "dsub": 1 },
+          "classement": { "organisation": "PRIDE", "rang": 0, "champion": true }
+        },
+        "modernMMA": {
+          "dateDebut": 1999,
+          "poidsReelKg": 112.0,
+          "poidsCombatKg": 120.2,
+          "stats": {
+            "frappeDebout": 78, "puissance": 72, "vitesseMains": 65, "precision": 75,
+            "combosDebout": 72, "kick": 65, "clinic": 73, "esquive": 58, "blocage": 68,
+            "footwork": 52, "wrestling": 82, "takedown": 70, "antiTakedown": 78,
+            "controleSol": 80, "jiuJitsu": 80, "submission": 78, "evasionSub": 78,
+            "cardio": 55, "force": 65, "vitesse": 52, "agilite": 45,
+            "mentoniere": 62, "recuperation": 48, "mental": 92, "experience": 95,
+            "coaching": 80, "adaptation": 85
+          },
+          "potentiel": 95,
+          "progression": 10,
+          "record": { "v": 39, "d": 6, "n": 1, "ko": 15, "sub": 14, "dec": 10, "dko": 3, "dsub": 2 },
+          "classement": null
+        }
+      }
+    },
+    {
+      "id": "nogueira",
+      "prenom": "Rodrigo",
+      "nom": "Nogueira",
+      "pays": "BRA",
+      "genre": "H",
+      "categorieH": 9,
+      "style": "Jiu-Jitsu brésilien",
+      "dateNaissance": "1976-06-02",
+      "tailleCm": 190,
+      "allongeCm": 193,
+      "eres": {
+        "pionniers": {
+          "dateDebut": 1999,
+          "poidsReelKg": 108.0,
+          "poidsCombatKg": 120.2,
+          "stats": {
+            "frappeDebout": 52, "puissance": 55, "vitesseMains": 48, "precision": 55,
+            "combosDebout": 42, "kick": 30, "clinic": 58, "esquive": 50, "blocage": 48,
+            "footwork": 45, "wrestling": 60, "takedown": 55, "antiTakedown": 62,
+            "controleSol": 78, "jiuJitsu": 85, "submission": 82, "evasionSub": 80,
+            "cardio": 75, "force": 65, "vitesse": 58, "agilite": 55,
+            "mentoniere": 88, "recuperation": 78, "mental": 82, "experience": 35,
+            "coaching": 30, "adaptation": 68
+          },
+          "potentiel": 90,
+          "progression": 75,
+          "record": { "v": 5, "d": 1, "n": 0, "ko": 1, "sub": 4, "dec": 0, "dko": 0, "dsub": 0 },
+          "classement": null
+        },
+        "goldenAge": {
+          "dateDebut": 1999,
+          "poidsReelKg": 110.0,
+          "poidsCombatKg": 120.2,
+          "stats": {
+            "frappeDebout": 70, "puissance": 65, "vitesseMains": 62, "precision": 68,
+            "combosDebout": 58, "kick": 42, "clinic": 68, "esquive": 60, "blocage": 58,
+            "footwork": 55, "wrestling": 72, "takedown": 65, "antiTakedown": 75,
+            "controleSol": 88, "jiuJitsu": 90, "submission": 88, "evasionSub": 85,
+            "cardio": 78, "force": 70, "vitesse": 60, "agilite": 55,
+            "mentoniere": 90, "recuperation": 80, "mental": 88, "experience": 78,
+            "coaching": 55, "adaptation": 78
+          },
+          "potentiel": 90,
+          "progression": 35,
+          "record": { "v": 30, "d": 5, "n": 1, "ko": 5, "sub": 18, "dec": 7, "dko": 2, "dsub": 1 },
+          "classement": { "organisation": "PRIDE", "rang": 2, "champion": false }
+        },
+        "modernMMA": {
+          "dateDebut": 1999,
+          "poidsReelKg": 112.0,
+          "poidsCombatKg": 120.2,
+          "stats": {
+            "frappeDebout": 65, "puissance": 55, "vitesseMains": 48, "precision": 62,
+            "combosDebout": 52, "kick": 38, "clinic": 60, "esquive": 45, "blocage": 52,
+            "footwork": 40, "wrestling": 65, "takedown": 55, "antiTakedown": 65,
+            "controleSol": 82, "jiuJitsu": 88, "submission": 85, "evasionSub": 82,
+            "cardio": 55, "force": 55, "vitesse": 42, "agilite": 38,
+            "mentoniere": 72, "recuperation": 48, "mental": 90, "experience": 92,
+            "coaching": 72, "adaptation": 80
+          },
+          "potentiel": 90,
+          "progression": 8,
+          "record": { "v": 34, "d": 11, "n": 1, "ko": 7, "sub": 20, "dec": 7, "dko": 4, "dsub": 3 },
+          "classement": null
+        }
+      }
+    },
+    {
+      "id": "krotov",
+      "prenom": "Miroslav",
+      "nom": "Krotov",
+      "pays": "POL",
+      "genre": "H",
+      "categorieH": 9,
+      "style": "Kickboxing",
+      "dateNaissance": "1974-09-10",
+      "tailleCm": 188,
+      "allongeCm": 195,
+      "eres": {
+        "pionniers": {
+          "dateDebut": 1999,
+          "poidsReelKg": 102.0,
+          "poidsCombatKg": 120.2,
+          "stats": {
+            "frappeDebout": 82, "puissance": 88, "vitesseMains": 72, "precision": 78,
+            "combosDebout": 65, "kick": 92, "clinic": 50, "esquive": 70, "blocage": 65,
+            "footwork": 72, "wrestling": 30, "takedown": 25, "antiTakedown": 40,
+            "controleSol": 25, "jiuJitsu": 20, "submission": 15, "evasionSub": 35,
+            "cardio": 72, "force": 78, "vitesse": 75, "agilite": 68,
+            "mentoniere": 72, "recuperation": 70, "mental": 78, "experience": 50,
+            "coaching": 35, "adaptation": 45
+          },
+          "potentiel": 88,
+          "progression": 70,
+          "record": { "v": 2, "d": 0, "n": 0, "ko": 2, "sub": 0, "dec": 0, "dko": 0, "dsub": 0 },
+          "classement": null
+        },
+        "goldenAge": {
+          "dateDebut": 1999,
+          "poidsReelKg": 104.0,
+          "poidsCombatKg": 120.2,
+          "stats": {
+            "frappeDebout": 90, "puissance": 92, "vitesseMains": 80, "precision": 85,
+            "combosDebout": 75, "kick": 95, "clinic": 58, "esquive": 78, "blocage": 72,
+            "footwork": 80, "wrestling": 42, "takedown": 35, "antiTakedown": 52,
+            "controleSol": 35, "jiuJitsu": 30, "submission": 20, "evasionSub": 45,
+            "cardio": 75, "force": 82, "vitesse": 78, "agilite": 70,
+            "mentoniere": 68, "recuperation": 65, "mental": 82, "experience": 75,
+            "coaching": 50, "adaptation": 55
+          },
+          "potentiel": 88,
+          "progression": 25,
+          "record": { "v": 28, "d": 7, "n": 2, "ko": 22, "sub": 1, "dec": 5, "dko": 3, "dsub": 3 },
+          "classement": { "organisation": "PRIDE", "rang": 3, "champion": false }
+        },
+        "modernMMA": null
+      }
+    },
+    {
+      "id": "silveira",
+      "prenom": "Wanderley",
+      "nom": "Silveira",
+      "pays": "BRA",
+      "genre": "H",
+      "categorieH": 8,
+      "style": "Muay Thaï",
+      "dateNaissance": "1976-07-03",
+      "tailleCm": 180,
+      "allongeCm": 185,
+      "eres": {
+        "pionniers": {
+          "dateDebut": 1996,
+          "poidsReelKg": 93.0,
+          "poidsCombatKg": 93.0,
+          "stats": {
+            "frappeDebout": 78, "puissance": 76, "vitesseMains": 80, "precision": 60,
+            "combosDebout": 75, "kick": 72, "clinic": 80, "esquive": 50, "blocage": 40,
+            "footwork": 48, "wrestling": 45, "takedown": 40, "antiTakedown": 52,
+            "controleSol": 40, "jiuJitsu": 45, "submission": 35, "evasionSub": 50,
+            "cardio": 78, "force": 72, "vitesse": 78, "agilite": 68,
+            "mentoniere": 82, "recuperation": 72, "mental": 55, "experience": 30,
+            "coaching": 25, "adaptation": 35
+          },
+          "potentiel": 85,
+          "progression": 72,
+          "record": { "v": 8, "d": 2, "n": 0, "ko": 7, "sub": 0, "dec": 1, "dko": 1, "dsub": 0 },
+          "classement": null
+        },
+        "goldenAge": {
+          "dateDebut": 1996,
+          "poidsReelKg": 95.0,
+          "poidsCombatKg": 93.0,
+          "stats": {
+            "frappeDebout": 85, "puissance": 82, "vitesseMains": 85, "precision": 68,
+            "combosDebout": 82, "kick": 80, "clinic": 85, "esquive": 55, "blocage": 48,
+            "footwork": 52, "wrestling": 52, "takedown": 48, "antiTakedown": 58,
+            "controleSol": 48, "jiuJitsu": 52, "submission": 40, "evasionSub": 55,
+            "cardio": 80, "force": 78, "vitesse": 80, "agilite": 70,
+            "mentoniere": 82, "recuperation": 72, "mental": 65, "experience": 72,
+            "coaching": 45, "adaptation": 48
+          },
+          "potentiel": 85,
+          "progression": 30,
+          "record": { "v": 33, "d": 8, "n": 1, "ko": 25, "sub": 3, "dec": 5, "dko": 5, "dsub": 1 },
+          "classement": { "organisation": "PRIDE", "rang": 0, "champion": true }
+        },
+        "modernMMA": {
+          "dateDebut": 1996,
+          "poidsReelKg": 97.0,
+          "poidsCombatKg": 93.0,
+          "stats": {
+            "frappeDebout": 72, "puissance": 65, "vitesseMains": 62, "precision": 60,
+            "combosDebout": 68, "kick": 65, "clinic": 72, "esquive": 40, "blocage": 42,
+            "footwork": 38, "wrestling": 48, "takedown": 42, "antiTakedown": 50,
+            "controleSol": 45, "jiuJitsu": 50, "submission": 38, "evasionSub": 50,
+            "cardio": 50, "force": 55, "vitesse": 48, "agilite": 40,
+            "mentoniere": 55, "recuperation": 40, "mental": 72, "experience": 88,
+            "coaching": 65, "adaptation": 55
+          },
+          "potentiel": 85,
+          "progression": 5,
+          "record": { "v": 35, "d": 14, "n": 1, "ko": 27, "sub": 3, "dec": 5, "dko": 8, "dsub": 2 },
+          "classement": null
+        }
+      }
+    },
+    {
+      "id": "coltrane",
+      "prenom": "Randy",
+      "nom": "Coltrane",
+      "pays": "USA",
+      "genre": "H",
+      "categorieH": 9,
+      "style": "Lutte gréco-romaine",
+      "dateNaissance": "1963-06-22",
+      "tailleCm": 185,
+      "allongeCm": 188,
+      "eres": {
+        "pionniers": {
+          "dateDebut": 1997,
+          "poidsReelKg": 102.0,
+          "poidsCombatKg": 120.2,
+          "stats": {
+            "frappeDebout": 58, "puissance": 62, "vitesseMains": 52, "precision": 55,
+            "combosDebout": 45, "kick": 25, "clinic": 82, "esquive": 52, "blocage": 58,
+            "footwork": 48, "wrestling": 82, "takedown": 78, "antiTakedown": 80,
+            "controleSol": 72, "jiuJitsu": 45, "submission": 35, "evasionSub": 60,
+            "cardio": 75, "force": 72, "vitesse": 52, "agilite": 48,
+            "mentoniere": 78, "recuperation": 68, "mental": 88, "experience": 72,
+            "coaching": 45, "adaptation": 75
+          },
+          "potentiel": 82,
+          "progression": 35,
+          "record": { "v": 8, "d": 3, "n": 0, "ko": 4, "sub": 0, "dec": 4, "dko": 1, "dsub": 1 },
+          "classement": { "organisation": "UFC", "rang": 0, "champion": true }
+        },
+        "goldenAge": {
+          "dateDebut": 1997,
+          "poidsReelKg": 104.0,
+          "poidsCombatKg": 120.2,
+          "stats": {
+            "frappeDebout": 65, "puissance": 62, "vitesseMains": 50, "precision": 58,
+            "combosDebout": 48, "kick": 28, "clinic": 82, "esquive": 50, "blocage": 60,
+            "footwork": 45, "wrestling": 82, "takedown": 78, "antiTakedown": 80,
+            "controleSol": 74, "jiuJitsu": 50, "submission": 38, "evasionSub": 62,
+            "cardio": 68, "force": 68, "vitesse": 45, "agilite": 40,
+            "mentoniere": 72, "recuperation": 55, "mental": 92, "experience": 88,
+            "coaching": 62, "adaptation": 82
+          },
+          "potentiel": 82,
+          "progression": 12,
+          "record": { "v": 16, "d": 8, "n": 0, "ko": 7, "sub": 1, "dec": 8, "dko": 4, "dsub": 2 },
+          "classement": { "organisation": "UFC", "rang": 2, "champion": false }
+        },
+        "modernMMA": null
+      }
+    },
+    {
+      "id": "ortega",
+      "prenom": "Tiago",
+      "nom": "Ortega",
+      "pays": "USA",
+      "genre": "H",
+      "categorieH": 8,
+      "style": "Lutte freestyle",
+      "dateNaissance": "1975-01-23",
+      "tailleCm": 188,
+      "allongeCm": 193,
+      "eres": {
+        "pionniers": {
+          "dateDebut": 1997,
+          "poidsReelKg": 95.0,
+          "poidsCombatKg": 93.0,
+          "stats": {
+            "frappeDebout": 52, "puissance": 68, "vitesseMains": 50, "precision": 45,
+            "combosDebout": 38, "kick": 20, "clinic": 55, "esquive": 40, "blocage": 42,
+            "footwork": 35, "wrestling": 78, "takedown": 80, "antiTakedown": 72,
+            "controleSol": 70, "jiuJitsu": 35, "submission": 28, "evasionSub": 50,
+            "cardio": 82, "force": 78, "vitesse": 65, "agilite": 58,
+            "mentoniere": 75, "recuperation": 70, "mental": 68, "experience": 30,
+            "coaching": 25, "adaptation": 42
+          },
+          "potentiel": 80,
+          "progression": 65,
+          "record": { "v": 5, "d": 2, "n": 0, "ko": 2, "sub": 0, "dec": 3, "dko": 1, "dsub": 0 },
+          "classement": { "organisation": "UFC", "rang": 4, "champion": false }
+        },
+        "goldenAge": {
+          "dateDebut": 1997,
+          "poidsReelKg": 98.0,
+          "poidsCombatKg": 93.0,
+          "stats": {
+            "frappeDebout": 62, "puissance": 72, "vitesseMains": 55, "precision": 52,
+            "combosDebout": 45, "kick": 28, "clinic": 60, "esquive": 45, "blocage": 48,
+            "footwork": 38, "wrestling": 80, "takedown": 82, "antiTakedown": 75,
+            "controleSol": 72, "jiuJitsu": 42, "submission": 32, "evasionSub": 55,
+            "cardio": 78, "force": 78, "vitesse": 60, "agilite": 52,
+            "mentoniere": 72, "recuperation": 62, "mental": 72, "experience": 72,
+            "coaching": 45, "adaptation": 50
+          },
+          "potentiel": 80,
+          "progression": 20,
+          "record": { "v": 15, "d": 7, "n": 0, "ko": 6, "sub": 1, "dec": 8, "dko": 4, "dsub": 1 },
+          "classement": { "organisation": "UFC", "rang": 5, "champion": false }
+        },
+        "modernMMA": null
+      }
+    }
+  ]
+}
