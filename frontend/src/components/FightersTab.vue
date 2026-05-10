@@ -371,6 +371,30 @@ onMounted(() => { loadEcurie(); loadDisponibles() })
           </span>
         </div>
 
+        <!-- Contrats actifs -->
+        <div v-if="dialogFighter.contrats?.length > 0" class="contrats-section">
+          <span class="section-title">📄 Contrats actifs</span>
+          <div v-for="c in dialogFighter.contrats" :key="c.contratID" class="contrat-card">
+            <div class="contrat-header">
+              <span class="contrat-org">{{ c.organisationNom }}</span>
+              <span class="contrat-prestige">{{ '⭐'.repeat(c.prestige) }}</span>
+            </div>
+            <div class="contrat-details">
+              <span class="contrat-combats">
+                {{ c.combatsEffectues }}/{{ c.nombreCombats }} combats effectués
+                ({{ c.combatsRestants }} restant{{ c.combatsRestants > 1 ? 's' : '' }})
+              </span>
+              <span v-if="c.estExclusif" class="contrat-exclusif">🔒 Exclusif</span>
+              <span v-else class="contrat-non-exclusif">🔓 Non exclusif</span>
+            </div>
+            <div class="contrat-progress">
+              <div class="contrat-progress-bar">
+                <div class="contrat-progress-fill" :style="{ width: (c.combatsEffectues / c.nombreCombats * 100) + '%' }"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div v-if="dialogFighter.rivalites?.length > 0" class="rivalites-section">
           <span class="section-title">🔥 Rivalités</span>
           <div v-for="r in dialogFighter.rivalites" :key="r.rivaliteID" class="rivalite-card">
@@ -788,6 +812,19 @@ onMounted(() => { loadEcurie(); loadDisponibles() })
   border-radius: 3px;
   transition: width .4s ease;
 }
+
+.contrats-section { margin-top: 16px; }
+.contrat-card { background: rgba(59,130,246,.06); border: 1px solid rgba(59,130,246,.15); border-radius: 8px; padding: 10px 14px; margin-bottom: 6px; }
+.contrat-header { display: flex; justify-content: space-between; align-items: center; }
+.contrat-org { font-weight: 700; font-size: .85rem; color: #e2e8f0; }
+.contrat-prestige { font-size: .8rem; }
+.contrat-details { display: flex; gap: 12px; margin-top: 4px; flex-wrap: wrap; }
+.contrat-combats { font-size: .75rem; color: #94a3b8; }
+.contrat-exclusif { font-size: .7rem; color: #f59e0b; font-weight: 600; }
+.contrat-non-exclusif { font-size: .7rem; color: #22c55e; }
+.contrat-progress { margin-top: 6px; }
+.contrat-progress-bar { height: 4px; background: rgba(255,255,255,.05); border-radius: 2px; overflow: hidden; }
+.contrat-progress-fill { height: 100%; background: #3b82f6; border-radius: 2px; transition: width .3s; }
 
 .rivalites-section { margin-top: 16px; }
 .section-title { font-size: .75rem; font-weight: 700; color: #f59e0b; letter-spacing: .05em; text-transform: uppercase; display: block; margin-bottom: 8px; }

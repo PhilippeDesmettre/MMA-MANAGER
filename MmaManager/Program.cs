@@ -348,6 +348,22 @@ using (var scope = app.Services.CreateScope())
         );
     """);
 
+    // Table ContratOrganisation
+    db.Database.ExecuteSqlRaw("""
+        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ContratOrganisation' AND type = 'U')
+        CREATE TABLE ContratOrganisation (
+            ContratID         INT IDENTITY(1,1) PRIMARY KEY,
+            PartieID          INT NOT NULL REFERENCES Partie(PartieID) ON DELETE CASCADE,
+            CombattantID      INT NOT NULL REFERENCES Combattant(CombattantID),
+            OrganisationID    INT NOT NULL REFERENCES CombatOrganisation(OrganisationID),
+            NombreCombats     INT NOT NULL DEFAULT 1,
+            CombatsEffectues  INT NOT NULL DEFAULT 0,
+            EstExclusif       BIT NOT NULL DEFAULT 0,
+            TourDebut         INT NOT NULL DEFAULT 0,
+            Statut            NVARCHAR(20) NOT NULL DEFAULT N'Actif'
+        );
+    """);
+
     // Colonne StaffPartieID dans EntrainementPlanifie (ajoutée si absente — NO ACTION pour éviter cycle cascade)
     db.Database.ExecuteSqlRaw("""
         IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('EntrainementPlanifie') AND name = 'StaffPartieID')

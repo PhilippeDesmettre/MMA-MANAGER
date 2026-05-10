@@ -80,6 +80,12 @@ public record CombattantResultatDto(
     IReadOnlyList<GainStatDto> Gains
 );
 
+public record ContratTermineDto(
+    string CombattantNom,
+    string OrganisationNom,
+    int    CombatsEffectues
+);
+
 public record TourResultatDto(
     int    TourJoue,
     int    NouveauMois,
@@ -94,5 +100,6 @@ public record TourResultatDto(
     decimal DepensesTotales,
     bool   EstGameOver,
     int    PrestigeEcurie,
-    bool   PrestigeAugmente
+    bool   PrestigeAugmente,
+    IReadOnlyList<ContratTermineDto> ContratsTermines
 );

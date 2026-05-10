@@ -103,6 +103,14 @@ function isRival(fighter, advId) {
   return fighter.rivalites?.some(r => r.adversaireID === advId) ?? false
 }
 
+function hasContrat(orgId) {
+  return currentFighter.value?.contrats?.some(c => c.organisationID === orgId) ?? false
+}
+
+function getContratRestants(orgId) {
+  return currentFighter.value?.contrats?.find(c => c.organisationID === orgId)?.combatsRestants ?? 0
+}
+
 function fighterImg(genre) {
   return genre === 'F' ? fighterDefaultF : fighterDefault
 }
@@ -354,6 +362,9 @@ onMounted(charger)
                   <span class="org-nom">{{ org.nom }}</span>
                   <span class="org-prestige" :title="`Prestige ${org.prestige}/5`">
                     {{ PRESTIGE_STARS(org.prestige) }}
+                  </span>
+                  <span v-if="hasContrat(org.organisationID)" class="contrat-badge">
+                    📄 {{ getContratRestants(org.organisationID) }} combat{{ getContratRestants(org.organisationID) > 1 ? 's' : '' }} restant{{ getContratRestants(org.organisationID) > 1 ? 's' : '' }}
                   </span>
                 </div>
                 <div class="org-bourse">
@@ -852,6 +863,7 @@ onMounted(charger)
 .adv-meta { display: flex; align-items: center; justify-content: space-between; font-size: .75rem; color: #64748b; margin-top: 2px; }
 .adv-note { font-weight: 700; color: #fca5a5; font-size: .85rem; }
 .rival-badge { font-size: .65rem; background: rgba(245,158,11,.15); color: #f59e0b; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+.contrat-badge { font-size: .65rem; background: rgba(59,130,246,.12); color: #3b82f6; padding: 2px 8px; border-radius: 4px; font-weight: 600; }
 .adversaire-physique { font-size: .68rem; color: #64748b; }
 .adv-record {
   font-size: .7rem;

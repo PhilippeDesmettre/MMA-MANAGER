@@ -104,5 +104,7 @@ public record CombattantDetailDto(
     IReadOnlyList<RivaliteDto> Rivalites,
     // Classement
     int?    RangMondial,
-    string? MeilleurRangOrga
+    string? MeilleurRangOrga,
+    // Contrats
+    IReadOnlyList<ContratActifDto> Contrats
 );

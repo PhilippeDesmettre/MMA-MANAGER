@@ -503,6 +503,12 @@ function formatMoney(val) { return Number(val ?? 0).toLocaleString('fr-FR') }
               🔥 Rivalité intensité {{ c.rivaliteIntensite }}/5 — {{ c.rivaliteRaison }}
             </div>
           </div>
+          <div v-if="tourResultat?.contratsTermines?.length > 0" class="contrats-termines">
+            <div v-for="ct in tourResultat.contratsTermines" :key="ct.combattantNom + ct.organisationNom" class="contrat-termine-item">
+              📄 Contrat terminé : {{ ct.combattantNom }} a complété ses {{ ct.combatsEffectues }} combats avec {{ ct.organisationNom }}. Il est maintenant libre !
+            </div>
+          </div>
+
           <div class="finance-summary">
             <div class="finance-title">💰 Bilan financier du mois</div>
             <div class="finance-row" v-if="tourResultat?.combatsResultats?.some(c => c.bourseGagnee)">
@@ -1251,6 +1257,10 @@ function formatMoney(val) { return Number(val ?? 0).toLocaleString('fr-FR') }
 .combat-injury { color: #ef4444; font-size: .82rem; margin: 4px 8px 8px; padding: 4px 8px; background: rgba(239,68,68,.08); border-radius: 6px; }
 .combat-rivalry-new { color: #f59e0b; font-size: .82rem; margin-top: 6px; padding: 4px 8px; background: rgba(245,158,11,.08); border-radius: 6px; font-weight: 600; }
 .combat-rivalry-existing { color: #f59e0b; font-size: .78rem; margin-top: 4px; }
+
+/* ── Contrats terminés ──────────────────────────────────────── */
+.contrats-termines { margin: 12px 0; }
+.contrat-termine-item { background: rgba(59,130,246,.08); color: #93c5fd; font-size: .82rem; padding: 8px 12px; border-radius: 6px; margin-bottom: 4px; }
 
 /* ── Finance summary ────────────────────────────────────────── */
 .finance-summary { margin-top: 16px; padding: 12px 14px; border-radius: 10px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06); }

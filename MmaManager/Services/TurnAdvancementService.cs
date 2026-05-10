@@ -50,7 +50,8 @@ public class TurnAdvancementService(
             .Include(r => r.Combattant2)
             .ToListAsync();
 
-        var combatsResultats = new List<CombatSimuleDto>();
+        var combatsResultats  = new List<CombatSimuleDto>();
+        var contratsTermines  = new List<ContratTermineDto>();
 
         foreach (var combat in combatsDuTour)
         {
@@ -201,7 +202,14 @@ public class TurnAdvancementService(
             {
                 contrat.CombatsEffectues++;
                 if (contrat.CombatsEffectues >= contrat.NombreCombats)
+                {
                     contrat.Statut = "Termine";
+                    contratsTermines.Add(new ContratTermineDto(
+                        $"{notre.Prenom} {notre.NomFamille}",
+                        orgNom,
+                        contrat.CombatsEffectues
+                    ));
+                }
             }
 
             var prestige   = combat.Organisation!.Prestige;
@@ -436,7 +444,8 @@ public class TurnAdvancementService(
             depenses,
             estGameOver,
             partie.PrestigeEcurie,
-            prestigeAugmente
+            prestigeAugmente,
+            contratsTermines
         );
     }
 

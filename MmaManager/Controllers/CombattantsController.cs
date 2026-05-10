@@ -118,6 +118,13 @@ public class CombattantsController(MmaContext db) : ControllerBase
             .GroupBy(x => (x.Genre, x.CategorieID))
             .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.Total).Select(x => x.CombattantID).ToList());
 
+        var contratsActifs = await db.ContratsOrganisation
+            .Where(co => co.PartieID == partie.PartieID && co.Statut == "Actif"
+                      && ecurieCombattantIds.Contains(co.CombattantID))
+            .Include(co => co.Organisation)
+            .AsNoTracking()
+            .ToListAsync();
+
         var rankingLookup = new Dictionary<int, (string? meilleurRang, int? rangMondial)>();
         foreach (var c in combattants)
         {
@@ -146,8 +153,21 @@ public class CombattantsController(MmaContext db) : ControllerBase
         return Ok(combattants.Select(c =>
         {
             var (meilleurRang, rangMondial) = rankingLookup.GetValueOrDefault(c.CombattantID);
+            var contratsDto = contratsActifs
+                .Where(co => co.CombattantID == c.CombattantID)
+                .Select(co => new ContratActifDto(
+                    co.ContratID,
+                    co.OrganisationID,
+                    co.Organisation!.Nom,
+                    co.Organisation.Prestige,
+                    co.NombreCombats,
+                    co.CombatsEffectues,
+                    co.NombreCombats - co.CombatsEffectues,
+                    co.EstExclusif,
+                    co.Statut))
+                .ToList();
             return ToDetailDto(c, references, partie.AnneeActuelle, partie.MoisActuel,
-                rivalites, meilleurRang, rangMondial);
+                rivalites, meilleurRang, rangMondial, contratsDto);
         }));
     }
 
@@ -163,7 +183,8 @@ public class CombattantsController(MmaContext db) : ControllerBase
 
         if (combattant is null) return NotFound();
 
-        List<Rivalite> rivalites = [];
+        List<Rivalite>       rivalites    = [];
+        List<ContratActifDto> contratsDto = [];
         string? meilleurRangOrga = null;
         int?    rangMondial      = null;
 
@@ -176,6 +197,24 @@ public class CombattantsController(MmaContext db) : ControllerBase
                 .Include(r => r.Combattant2)
                 .AsNoTracking()
                 .ToListAsync();
+
+            var contratsRaw = await db.ContratsOrganisation
+                .Where(co => co.PartieID == partie.PartieID
+                          && co.CombattantID == id
+                          && co.Statut == "Actif")
+                .Include(co => co.Organisation)
+                .AsNoTracking()
+                .ToListAsync();
+            contratsDto = contratsRaw.Select(co => new ContratActifDto(
+                co.ContratID,
+                co.OrganisationID,
+                co.Organisation!.Nom,
+                co.Organisation.Prestige,
+                co.NombreCombats,
+                co.CombatsEffectues,
+                co.NombreCombats - co.CombatsEffectues,
+                co.EstExclusif,
+                co.Statut)).ToList();
 
             var ceinture = await db.ChampionCeintures
                 .Where(c => c.PartieID == partie.PartieID && c.CombattantID == id)
@@ -218,7 +257,7 @@ public class CombattantsController(MmaContext db) : ControllerBase
         return Ok(ToDetailDto(combattant!, references,
             partie?.AnneeActuelle ?? DateTime.Today.Year,
             partie?.MoisActuel ?? DateTime.Today.Month,
-            rivalites, meilleurRangOrga, rangMondial));
+            rivalites, meilleurRangOrga, rangMondial, contratsDto));
     }
 
     [HttpPost("{id:int}/recruter")]
@@ -342,7 +381,8 @@ public class CombattantsController(MmaContext db) : ControllerBase
         int anneeJeu, int moisJeu,
         IReadOnlyList<Rivalite> rivalites,
         string? meilleurRangOrga = null,
-        int? rangMondial = null)
+        int? rangMondial = null,
+        IReadOnlyList<ContratActifDto>? contrats = null)
     {
         var pays = GetPays(c, references);
         int age  = CalculerAge(c.DateNaissance, anneeJeu, moisJeu);
@@ -430,7 +470,8 @@ public class CombattantsController(MmaContext db) : ControllerBase
             potentielAffiche,
             rivalitesDto,
             rangMondial,
-            meilleurRangOrga
+            meilleurRangOrga,
+            contrats ?? []
         );
     }
 }

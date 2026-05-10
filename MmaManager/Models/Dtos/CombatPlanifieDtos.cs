@@ -65,12 +65,12 @@ public record ContratPropositionDto(
     string Description
 );
 
-/// <summary>Contrat actif d'un combattant.</summary>
+/// <summary>Contrat actif d'un combattant (dans la fiche combattant).</summary>
 public record ContratActifDto(
     int    ContratID,
-    int    CombattantID,
-    string CombattantNom,
+    int    OrganisationID,
     string OrganisationNom,
+    int    Prestige,
     int    NombreCombats,
     int    CombatsEffectues,
     int    CombatsRestants,
