@@ -48,6 +48,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddScoped<CombatSimulationService>();
 builder.Services.AddScoped<TrainingService>();
 builder.Services.AddScoped<RankingService>();
+builder.Services.AddScoped<WorldSimulationService>();
 builder.Services.AddScoped<TurnAdvancementService>();
 builder.Services.AddScoped<ProspectGenerationService>();
 builder.Services.AddScoped<RosterHistoriqueService>();

@@ -503,6 +503,15 @@ function formatMoney(val) { return Number(val ?? 0).toLocaleString('fr-FR') }
               🔥 Rivalité intensité {{ c.rivaliteIntensite }}/5 — {{ c.rivaliteRaison }}
             </div>
           </div>
+          <div v-if="tourResultat?.nouvellesMonde?.length > 0" class="monde-section">
+            <h3 class="monde-title">📰 Nouvelles du monde MMA</h3>
+            <div v-for="(n, i) in tourResultat.nouvellesMonde" :key="i"
+                 class="monde-nouvelle" :class="'monde-' + n.importance">
+              <span class="monde-titre">{{ n.titre }}</span>
+              <span class="monde-detail">{{ n.detail }}</span>
+            </div>
+          </div>
+
           <div v-if="tourResultat?.contratsTermines?.length > 0" class="contrats-termines">
             <div v-for="ct in tourResultat.contratsTermines" :key="ct.combattantNom + ct.organisationNom" class="contrat-termine-item">
               📄 Contrat terminé : {{ ct.combattantNom }} a complété ses {{ ct.combatsEffectues }} combats avec {{ ct.organisationNom }}. Il est maintenant libre !
@@ -1257,6 +1266,16 @@ function formatMoney(val) { return Number(val ?? 0).toLocaleString('fr-FR') }
 .combat-injury { color: #ef4444; font-size: .82rem; margin: 4px 8px 8px; padding: 4px 8px; background: rgba(239,68,68,.08); border-radius: 6px; }
 .combat-rivalry-new { color: #f59e0b; font-size: .82rem; margin-top: 6px; padding: 4px 8px; background: rgba(245,158,11,.08); border-radius: 6px; font-weight: 600; }
 .combat-rivalry-existing { color: #f59e0b; font-size: .78rem; margin-top: 4px; }
+
+/* ── Nouvelles monde ────────────────────────────────────────── */
+.monde-section { margin: 16px 0; padding: 16px; background: rgba(255,255,255,.02); border-radius: 10px; border: 1px solid rgba(255,255,255,.06); }
+.monde-title { font-size: .9rem; font-weight: 700; color: #e2e8f0; margin: 0 0 12px; }
+.monde-nouvelle { padding: 8px 12px; border-radius: 6px; margin-bottom: 6px; }
+.monde-normale    { background: rgba(148,163,184,.06); }
+.monde-importante { background: rgba(245,158,11,.08); border-left: 3px solid #f59e0b; }
+.monde-majeure    { background: rgba(220,38,38,.08);  border-left: 3px solid #dc2626; }
+.monde-titre  { display: block; font-weight: 600; font-size: .82rem; color: #e2e8f0; }
+.monde-detail { display: block; font-size: .75rem; color: #94a3b8; margin-top: 2px; }
 
 /* ── Contrats terminés ──────────────────────────────────────── */
 .contrats-termines { margin: 12px 0; }

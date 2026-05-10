@@ -9,7 +9,8 @@ public class TurnAdvancementService(
     MmaContext db,
     CombatSimulationService combatService,
     TrainingService trainingService,
-    RankingService rankingService)
+    RankingService rankingService,
+    WorldSimulationService worldService)
 {
     public async Task<TourResultatDto?> AvancerTour(int userId)
     {
@@ -357,6 +358,10 @@ public class TurnAdvancementService(
             }
         }
 
+        // ── ÉTAPE 2d : Simulation du monde ───────────────────────
+        var nouvellesMonde = await worldService.SimulerTour(
+            partie.PartieID, partie.AnneeActuelle, partie.MoisActuel, rng);
+
         // ── ÉTAPE 3 : Finances ────────────────────────────────────
         var staffEmbauches = await db.StaffParties
             .Where(sp => sp.PartieID == partie.PartieID)
@@ -445,7 +450,8 @@ public class TurnAdvancementService(
             estGameOver,
             partie.PrestigeEcurie,
             prestigeAugmente,
-            contratsTermines
+            contratsTermines,
+            nouvellesMonde
         );
     }
 

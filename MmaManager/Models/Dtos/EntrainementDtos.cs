@@ -86,6 +86,8 @@ public record ContratTermineDto(
     int    CombatsEffectues
 );
 
+public record NouvelleMondeDto(string Titre, string Detail, string Importance);
+
 public record TourResultatDto(
     int    TourJoue,
     int    NouveauMois,
@@ -101,5 +103,6 @@ public record TourResultatDto(
     bool   EstGameOver,
     int    PrestigeEcurie,
     bool   PrestigeAugmente,
-    IReadOnlyList<ContratTermineDto> ContratsTermines
+    IReadOnlyList<ContratTermineDto>  ContratsTermines,
+    IReadOnlyList<NouvelleMondeDto>   NouvellesMonde
 );
