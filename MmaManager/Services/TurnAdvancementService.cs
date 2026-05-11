@@ -10,7 +10,8 @@ public class TurnAdvancementService(
     CombatSimulationService combatService,
     TrainingService trainingService,
     RankingService rankingService,
-    WorldSimulationService worldService)
+    WorldSimulationService worldService,
+    RosterHistoriqueService rosterService)
 {
     public async Task<TourResultatDto?> AvancerTour(int userId)
     {
@@ -358,9 +359,15 @@ public class TurnAdvancementService(
             }
         }
 
-        // ── ÉTAPE 2d : Simulation du monde ───────────────────────
+        // ── ÉTAPE 2d : Apparitions de nouveaux fighters historiques ──
+        var nouvellesApparitions = await rosterService.VerifierApparitions(
+            partie.PartieID, partie.AnneeActuelle, partie.MoisActuel);
+
+        // ── ÉTAPE 2e : Simulation du monde ───────────────────────
         var nouvellesMonde = await worldService.SimulerTour(
             partie.PartieID, partie.AnneeActuelle, partie.MoisActuel, rng);
+
+        nouvellesMonde.InsertRange(0, nouvellesApparitions);
 
         // ── ÉTAPE 3 : Finances ────────────────────────────────────
         var staffEmbauches = await db.StaffParties

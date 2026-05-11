@@ -70,82 +70,115 @@ public class WorldSimulationService(MmaContext db, RankingService rankingService
             return nouvelles;
         }
 
+        var ceintures = await db.ChampionCeintures
+            .Where(c => c.PartieID == partieId && c.CombattantID != null)
+            .ToListAsync();
+
         var dejaUtilises = new HashSet<int>();
-        var orgsShufflee  = organisations.ToList();
 
         for (int i = 0; i < nbCombats; i++)
         {
-            // Mélanger les orgs pour varier
-            for (int s = orgsShufflee.Count - 1; s > 0; s--)
-            {
-                int t = rng.Next(s + 1);
-                (orgsShufflee[s], orgsShufflee[t]) = (orgsShufflee[t], orgsShufflee[s]);
-            }
+            // ── Choisir un fighter disponible ──
+            var disponibles = candidats
+                .Where(f => !dejaUtilises.Contains(f.CombattantID))
+                .ToList();
 
-            CombatOrganisation? orgChoisie = null;
-            Combattant? f1 = null, f2 = null;
-            string genre      = "H";
-            int    categorieID = 0;
+            if (disponibles.Count < 2) break;
 
-            foreach (var orgTry in orgsShufflee)
-            {
-                var orgCats = orgCatLookup.GetValueOrDefault(orgTry.OrganisationID, []);
-                if (!orgCats.Any()) continue;
-
-                // Essai Open Weight (cross-catégorie, même genre)
-                foreach (var owCat in orgCats.Where(oc => oc.EstOpenWeight))
-                {
-                    var avail = candidats
-                        .Where(c => c.Genre == owCat.Genre && !dejaUtilises.Contains(c.CombattantID))
-                        .ToList();
-                    if (avail.Count < 2) continue;
-
-                    genre      = owCat.Genre;
-                    categorieID = openWeightCatId;
-                    var top = avail.OrderByDescending(c => c.Overall).Take(10).ToList();
-                    for (int j = top.Count - 1; j > 0; j--)
-                    {
-                        int k = rng.Next(j + 1);
-                        (top[j], top[k]) = (top[k], top[j]);
-                    }
-                    f1 = top[0]; f2 = top[1]; orgChoisie = orgTry;
-                    break;
-                }
-                if (orgChoisie != null) break;
-
-                // Essai catégories spécifiques
-                var specificCats = orgCats
-                    .Where(oc => !oc.EstOpenWeight)
-                    .OrderBy(_ => rng.Next())
-                    .ToList();
-                foreach (var cat in specificCats)
-                {
-                    var avail = candidats
-                        .Where(c => c.Genre == cat.Genre && c.CategorieID == cat.CategorieID
-                                 && !dejaUtilises.Contains(c.CombattantID))
-                        .ToList();
-                    if (avail.Count < 2) continue;
-
-                    genre      = cat.Genre;
-                    categorieID = cat.CategorieID;
-                    var top = avail.OrderByDescending(c => c.Overall).Take(10).ToList();
-                    for (int j = top.Count - 1; j > 0; j--)
-                    {
-                        int k = rng.Next(j + 1);
-                        (top[j], top[k]) = (top[k], top[j]);
-                    }
-                    f1 = top[0]; f2 = top[1]; orgChoisie = orgTry;
-                    break;
-                }
-                if (orgChoisie != null) break;
-            }
-
-            if (orgChoisie == null || f1 == null || f2 == null) break;
-
+            var f1 = disponibles[rng.Next(disponibles.Count)];
             dejaUtilises.Add(f1.CombattantID);
+
+            // ── Déterminer l'orga adaptée au niveau du fighter ──
+            CombatOrganisation org;
+            var ceintureFighter = ceintures.FirstOrDefault(c => c.CombattantID == f1.CombattantID);
+
+            if (ceintureFighter is not null)
+            {
+                org = organisations.FirstOrDefault(o => o.OrganisationID == ceintureFighter.OrganisationID)
+                      ?? organisations[rng.Next(organisations.Count)];
+            }
+            else
+            {
+                int prestigeMin, prestigeMax;
+                if      (f1.Overall >= 86) { prestigeMin = 4; prestigeMax = 5; }
+                else if (f1.Overall >= 71) { prestigeMin = 3; prestigeMax = 4; }
+                else if (f1.Overall >= 56) { prestigeMin = 2; prestigeMax = 3; }
+                else if (f1.Overall >= 41) { prestigeMin = 1; prestigeMax = 2; }
+                else                       { prestigeMin = 1; prestigeMax = 1; }
+
+                var orgsCandidates = organisations
+                    .Where(o => o.Prestige >= prestigeMin && o.Prestige <= prestigeMax)
+                    .ToList();
+
+                if (orgsCandidates.Count == 0)
+                    orgsCandidates = organisations.Where(o => o.Prestige <= 2).ToList();
+
+                if (orgsCandidates.Count == 0)
+                {
+                    dejaUtilises.Remove(f1.CombattantID);
+                    continue;
+                }
+
+                org = orgsCandidates[rng.Next(orgsCandidates.Count)];
+            }
+
+            // ── Catégories de l'orga (déjà filtrées par annee dans orgCatLookup) ──
+            var orgCatsF1 = orgCatLookup.GetValueOrDefault(org.OrganisationID, []);
+            bool orgHasOpenWeight = orgCatsF1.Any(oc => oc.EstOpenWeight && oc.Genre == f1.Genre);
+            bool orgHasNaturalCat = orgCatsF1.Any(oc => !oc.EstOpenWeight && oc.CategorieID == f1.CategorieID && oc.Genre == f1.Genre);
+
+            string genre;
+            int    categorieID;
+
+            if (orgHasNaturalCat)
+            {
+                genre      = f1.Genre;
+                categorieID = f1.CategorieID;
+            }
+            else if (orgHasOpenWeight)
+            {
+                genre      = f1.Genre;
+                categorieID = openWeightCatId;
+            }
+            else
+            {
+                dejaUtilises.Remove(f1.CombattantID);
+                continue;
+            }
+
+            // ── Trouver un adversaire adapté (même genre, Overall proche, catégorie compatible) ──
+            int overallMin = Math.Max(20, f1.Overall - 15);
+            int overallMax = f1.Overall + 15;
+
+            var adversairesCandidats = disponibles
+                .Where(f => f.CombattantID != f1.CombattantID
+                         && f.Genre == f1.Genre
+                         && f.Overall >= overallMin
+                         && f.Overall <= overallMax
+                         && (orgHasOpenWeight || f.CategorieID == f1.CategorieID))
+                .ToList();
+
+            if (adversairesCandidats.Count == 0)
+            {
+                adversairesCandidats = disponibles
+                    .Where(f => f.CombattantID != f1.CombattantID
+                             && f.Genre == f1.Genre
+                             && (orgHasOpenWeight || f.CategorieID == f1.CategorieID))
+                    .ToList();
+            }
+
+            if (adversairesCandidats.Count == 0)
+            {
+                dejaUtilises.Remove(f1.CombattantID);
+                continue;
+            }
+
+            var f2 = adversairesCandidats
+                .OrderBy(f => Math.Abs(f.Overall - f1.Overall) + rng.Next(6))
+                .First();
+
             dejaUtilises.Add(f2.CombattantID);
 
-            var org = orgChoisie;
             var sim = SimulerCombatSimplifie(f1, f2, rng);
 
             Combattant? gagnant = sim.EstNul ? null : (sim.Gagnant == 1 ? f1 : f2);

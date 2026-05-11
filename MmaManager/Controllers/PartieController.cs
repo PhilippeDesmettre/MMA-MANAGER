@@ -118,7 +118,7 @@ public class PartieController(MmaContext db, ProspectGenerationService prospectS
 
         await prospectService.GenererProspects(req.PaysResidenceID, anneeDepart);
         await prospectService.GenererOrganisationsLocales(req.PaysResidenceID, anneeDepart, partie.PartieID);
-        await rosterService.ChargerRoster(partie.PartieID, anneeDepart);
+        await rosterService.ChargerRosterInitial(partie.PartieID, anneeDepart);
 
         // Recharger avec navigations
         partie.Entraineur = entraineur;
