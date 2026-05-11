@@ -218,38 +218,75 @@ public class ProspectGenerationService(MmaContext db)
         var pays = await db.Pays.FindAsync(paysResidenceId);
         var n = pays?.Nom ?? "Local";
 
-        db.CombatOrganisations.AddRange(
-            new CombatOrganisation
-            {
-                Nom           = $"{n} Underground Fight Club",
-                PaysOrigineID = paysResidenceId,
-                AnneeCreation = anneeDepart - 5,
-                Prestige      = 1,
-                Description   = "Combats clandestins organisés dans des entrepôts et garages. Peu de règles, beaucoup d'ambiance.",
-                EstFictive    = true,
-                PartieID      = partieId
-            },
-            new CombatOrganisation
-            {
-                Nom           = $"{n} Brawl Circuit",
-                PaysOrigineID = paysResidenceId,
-                AnneeCreation = anneeDepart - 3,
-                Prestige      = 1,
-                Description   = "Petite organisation locale qui fait tourner des cartes régulières dans les salles de quartier.",
-                EstFictive    = true,
-                PartieID      = partieId
-            },
-            new CombatOrganisation
-            {
-                Nom           = $"{n} Combat League",
-                PaysOrigineID = paysResidenceId,
-                AnneeCreation = anneeDepart - 1,
-                Prestige      = 2,
-                Description   = "Organisation régionale en pleine croissance, attire les meilleurs combattants du pays.",
-                EstFictive    = true,
-                PartieID      = partieId
-            }
-        );
+        var org1 = new CombatOrganisation
+        {
+            Nom           = $"{n} Underground Fight Club",
+            PaysOrigineID = paysResidenceId,
+            AnneeCreation = anneeDepart - 5,
+            Prestige      = 1,
+            Description   = "Combats clandestins organisés dans des entrepôts et garages. Peu de règles, beaucoup d'ambiance.",
+            EstFictive    = true,
+            PartieID      = partieId
+        };
+        var org2 = new CombatOrganisation
+        {
+            Nom           = $"{n} Brawl Circuit",
+            PaysOrigineID = paysResidenceId,
+            AnneeCreation = anneeDepart - 3,
+            Prestige      = 1,
+            Description   = "Petite organisation locale qui fait tourner des cartes régulières dans les salles de quartier.",
+            EstFictive    = true,
+            PartieID      = partieId
+        };
+        var org3 = new CombatOrganisation
+        {
+            Nom           = $"{n} Combat League",
+            PaysOrigineID = paysResidenceId,
+            AnneeCreation = anneeDepart - 1,
+            Prestige      = 2,
+            Description   = "Organisation régionale en pleine croissance, attire les meilleurs combattants du pays.",
+            EstFictive    = true,
+            PartieID      = partieId
+        };
+        db.CombatOrganisations.AddRange(org1, org2, org3);
         await db.SaveChangesAsync();
+
+        // Catégories pour les orgs locales
+        var openWeightCat = await db.CategoriesPoidsH.FirstOrDefaultAsync(c => c.Nom == "Open Weight");
+        if (openWeightCat is not null)
+        {
+            int owId = openWeightCat.CategorieID;
+            var newCats = new List<MmaManager.Models.OrganisationCategorie>();
+
+            foreach (var org in new[] { org1, org2, org3 })
+            {
+                // Open Weight toujours disponible
+                newCats.Add(new MmaManager.Models.OrganisationCategorie
+                {
+                    OrganisationID    = org.OrganisationID,
+                    CategorieID       = owId,
+                    Genre             = "H",
+                    AnneeIntroduction = anneeDepart,
+                    EstOpenWeight     = true
+                });
+
+                // Catégories structurées si ere >= 2000
+                if (anneeDepart >= 2000)
+                {
+                    for (int catId = 5; catId <= 9; catId++)
+                        newCats.Add(new MmaManager.Models.OrganisationCategorie
+                        {
+                            OrganisationID    = org.OrganisationID,
+                            CategorieID       = catId,
+                            Genre             = "H",
+                            AnneeIntroduction = anneeDepart,
+                            EstOpenWeight     = false
+                        });
+                }
+            }
+
+            db.OrganisationCategories.AddRange(newCats);
+            await db.SaveChangesAsync();
+        }
     }
 }

@@ -179,21 +179,6 @@
     "prenoms_f": ["Gloria", "Carine", "Divine", "Rachel", "Merveille", "Grâce", "Nadège", "Sylvie", "Henriette", "Pélagie", "Noëlla", "Yvette", "Pascaline", "Espérance", "Josiane"],
     "noms": ["Mbemba", "Bakambu", "Mulumba", "Kabangu", "Bopaka", "Lusamba", "Makelele", "Mpoku", "Kebano", "Tisserand", "Mongongu", "Mbokani", "Bolasie", "Lualua", "Kakuta", "Bokila", "Ndombe", "Kabongo", "Matumona", "Dioko"]
   },
-  "ALG": {
-    "prenoms_h": ["Mehdi", "Karim", "Yacine", "Samir", "Rachid", "Nabil", "Hamza", "Amine", "Sofiane", "Bilal", "Riad", "Mourad", "Hicham", "Farid", "Nassim"],
-    "prenoms_f": ["Amina", "Fatima", "Nadia", "Leila", "Samira", "Yasmine", "Sara", "Meriem", "Lina", "Imane", "Houda", "Djamila", "Amel", "Rania", "Kenza"],
-    "noms": ["Benaissa", "Boudiaf", "Medjani", "Ghoulam", "Slimani", "Brahimi", "Mahrez", "Bentaleb", "Feghouli", "Mandi", "Boudebouz", "Halliche", "Zeffane", "Guedioura", "Belkalem", "Soudani", "Hanni", "Benzia", "Atal", "Delort"]
-  },
-  "TUN": {
-    "prenoms_h": ["Mohamed", "Ahmed", "Youssef", "Amine", "Hamza", "Bilel", "Oussama", "Anis", "Seif", "Nizar", "Firas", "Ghazi", "Rami", "Wissem", "Aymen"],
-    "prenoms_f": ["Mariem", "Yasmine", "Ines", "Amira", "Salma", "Nour", "Rim", "Syrine", "Eya", "Asma", "Rania", "Dorra", "Hiba", "Emna", "Chaima"],
-    "noms": ["Ben Ali", "Trabelsi", "Jebali", "Khazri", "Msakni", "Sassi", "Sliti", "Bronn", "Meriah", "Haddadi", "Chaalali", "Skhiri", "Mejri", "Khalil", "Bedoui", "Jaziri", "Chikhaoui", "Darragi", "Jemal", "Korbi"]
-  },
-  "UZB": {
-    "prenoms_h": ["Shavkat", "Rustam", "Dilshod", "Otabek", "Jasur", "Firdavs", "Sardor", "Bekzod", "Nodir", "Akmal", "Dostonbek", "Muxriddin", "Bobur", "Sanjar", "Eldor"],
-    "prenoms_f": ["Malika", "Nilufar", "Dilnoza", "Shahnoza", "Feruza", "Gulnora", "Nodira", "Zulfiya", "Barno", "Mohira", "Kamola", "Dilorom", "Shoira", "Lola", "Nasiba"],
-    "noms": ["Rakhimov", "Abdullaev", "Karimov", "Mirzaev", "Tursunov", "Nazarov", "Yusupov", "Sultanov", "Ismoilov", "Khamidov", "Jumaev", "Ergashev", "Alimov", "Shamsiev", "Akhmedov", "Umarov", "Sobirov", "Zakirov", "Kholmatov", "Nematov"]
-  },
   "_default": {
     "prenoms_h": ["Alex", "Daniel", "Max", "Marco", "Victor", "Leo", "Adam", "Erik", "Andre", "Oscar", "David", "Lucas", "Thomas", "Martin", "Niko"],
     "prenoms_f": ["Maria", "Sofia", "Elena", "Anna", "Sara", "Lina", "Nina", "Eva", "Mia", "Leila", "Nora", "Hana", "Yuna", "Amara", "Zara"],

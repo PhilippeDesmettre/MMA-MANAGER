@@ -26,6 +26,18 @@ public class WorldSimulationService(MmaContext db, RankingService rankingService
 
         int nbCombats = Math.Min(8, 3 + organisations.Count / 3);
 
+        // Catégorie Open Weight
+        var openWeightCat = await db.CategoriesPoidsH.FirstOrDefaultAsync(c => c.Nom == "Open Weight");
+        int openWeightCatId = openWeightCat?.CategorieID ?? -1;
+
+        // Catégories par organisation actives cette année
+        var orgCategories = await db.OrganisationCategories
+            .Where(oc => oc.AnneeIntroduction <= annee)
+            .ToListAsync();
+        var orgCatLookup = orgCategories
+            .GroupBy(oc => oc.OrganisationID)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
         // Charger tous les fighters non-écurie pour progression/déclin/guérison
         var tousNonEcurie = await db.Combattants
             .Where(c => !ecurieIds.Contains(c.CombattantID))
@@ -52,48 +64,88 @@ public class WorldSimulationService(MmaContext db, RankingService rankingService
             .Where(c => c.Overall > 30 && c.SemainesIndispo == 0)
             .ToList();
 
-        var groupes = candidats
-            .GroupBy(c => (c.Genre, c.CategorieID))
-            .Where(g => g.Count() >= 2)
-            .ToList();
-
-        if (groupes.Count == 0)
+        if (candidats.Count < 2)
         {
             await db.SaveChangesAsync();
             return nouvelles;
         }
 
         var dejaUtilises = new HashSet<int>();
+        var orgsShufflee  = organisations.ToList();
 
         for (int i = 0; i < nbCombats; i++)
         {
-            var groupesDisponibles = groupes
-                .Where(g => g.Count(f => !dejaUtilises.Contains(f.CombattantID)) >= 2)
-                .ToList();
-
-            if (groupesDisponibles.Count == 0) break;
-
-            var groupe = groupesDisponibles[rng.Next(groupesDisponibles.Count)];
-            var (genre, categorieID) = groupe.Key;
-
-            var dispo = groupe
-                .Where(f => !dejaUtilises.Contains(f.CombattantID))
-                .OrderByDescending(f => f.Overall)
-                .Take(10)
-                .ToList();
-
-            for (int j = dispo.Count - 1; j > 0; j--)
+            // Mélanger les orgs pour varier
+            for (int s = orgsShufflee.Count - 1; s > 0; s--)
             {
-                int k = rng.Next(j + 1);
-                (dispo[j], dispo[k]) = (dispo[k], dispo[j]);
+                int t = rng.Next(s + 1);
+                (orgsShufflee[s], orgsShufflee[t]) = (orgsShufflee[t], orgsShufflee[s]);
             }
 
-            var f1 = dispo[0];
-            var f2 = dispo[1];
+            CombatOrganisation? orgChoisie = null;
+            Combattant? f1 = null, f2 = null;
+            string genre      = "H";
+            int    categorieID = 0;
+
+            foreach (var orgTry in orgsShufflee)
+            {
+                var orgCats = orgCatLookup.GetValueOrDefault(orgTry.OrganisationID, []);
+                if (!orgCats.Any()) continue;
+
+                // Essai Open Weight (cross-catégorie, même genre)
+                foreach (var owCat in orgCats.Where(oc => oc.EstOpenWeight))
+                {
+                    var avail = candidats
+                        .Where(c => c.Genre == owCat.Genre && !dejaUtilises.Contains(c.CombattantID))
+                        .ToList();
+                    if (avail.Count < 2) continue;
+
+                    genre      = owCat.Genre;
+                    categorieID = openWeightCatId;
+                    var top = avail.OrderByDescending(c => c.Overall).Take(10).ToList();
+                    for (int j = top.Count - 1; j > 0; j--)
+                    {
+                        int k = rng.Next(j + 1);
+                        (top[j], top[k]) = (top[k], top[j]);
+                    }
+                    f1 = top[0]; f2 = top[1]; orgChoisie = orgTry;
+                    break;
+                }
+                if (orgChoisie != null) break;
+
+                // Essai catégories spécifiques
+                var specificCats = orgCats
+                    .Where(oc => !oc.EstOpenWeight)
+                    .OrderBy(_ => rng.Next())
+                    .ToList();
+                foreach (var cat in specificCats)
+                {
+                    var avail = candidats
+                        .Where(c => c.Genre == cat.Genre && c.CategorieID == cat.CategorieID
+                                 && !dejaUtilises.Contains(c.CombattantID))
+                        .ToList();
+                    if (avail.Count < 2) continue;
+
+                    genre      = cat.Genre;
+                    categorieID = cat.CategorieID;
+                    var top = avail.OrderByDescending(c => c.Overall).Take(10).ToList();
+                    for (int j = top.Count - 1; j > 0; j--)
+                    {
+                        int k = rng.Next(j + 1);
+                        (top[j], top[k]) = (top[k], top[j]);
+                    }
+                    f1 = top[0]; f2 = top[1]; orgChoisie = orgTry;
+                    break;
+                }
+                if (orgChoisie != null) break;
+            }
+
+            if (orgChoisie == null || f1 == null || f2 == null) break;
+
             dejaUtilises.Add(f1.CombattantID);
             dejaUtilises.Add(f2.CombattantID);
 
-            var org = organisations[rng.Next(organisations.Count)];
+            var org = orgChoisie;
             var sim = SimulerCombatSimplifie(f1, f2, rng);
 
             Combattant? gagnant = sim.EstNul ? null : (sim.Gagnant == 1 ? f1 : f2);
@@ -127,11 +179,11 @@ public class WorldSimulationService(MmaContext db, RankingService rankingService
             if (sim.EstNul)
                 await rankingService.MettreAJourApresCombat(
                     partieId, f1.CombattantID, f2.CombattantID,
-                    org.OrganisationID, false, true, sim.Methode, org.Prestige);
+                    org.OrganisationID, false, true, sim.Methode, org.Prestige, categorieID);
             else
                 await rankingService.MettreAJourApresCombat(
                     partieId, gagnant!.CombattantID, perdant!.CombattantID,
-                    org.OrganisationID, true, false, sim.Methode, org.Prestige);
+                    org.OrganisationID, true, false, sim.Methode, org.Prestige, categorieID);
 
             // ── Logique de ceinture ───────────────────────────────
             bool changementChampion = false;

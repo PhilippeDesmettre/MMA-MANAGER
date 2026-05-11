@@ -139,7 +139,7 @@ using (var scope = app.Services.CreateScope())
     """);
     db.Database.ExecuteSqlRaw("""
         IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Partie') AND name = 'AnneeActuelle')
-            ALTER TABLE Partie ADD AnneeActuelle INT NOT NULL DEFAULT 1985;
+            ALTER TABLE Partie ADD AnneeActuelle INT NOT NULL DEFAULT 1993;
     """);
     db.Database.ExecuteSqlRaw("""
         IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Partie') AND name = 'PrestigeEcurie')
@@ -373,6 +373,20 @@ using (var scope = app.Services.CreateScope())
             CombattantID       INT NULL REFERENCES Combattant(CombattantID),
             TourObtention      INT NOT NULL DEFAULT 0,
             NbDefenses         INT NOT NULL DEFAULT 0
+        );
+    """);
+
+    // Table OrganisationCategorie
+    db.Database.ExecuteSqlRaw("""
+        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'OrganisationCategorie' AND type = 'U')
+        CREATE TABLE OrganisationCategorie (
+            OrganisationCategorieID INT IDENTITY(1,1) PRIMARY KEY,
+            OrganisationID          INT NOT NULL REFERENCES CombatOrganisation(OrganisationID) ON DELETE CASCADE,
+            CategorieID             INT NOT NULL,
+            Genre                   CHAR(1) NOT NULL DEFAULT 'H',
+            AnneeIntroduction       INT NOT NULL,
+            EstOpenWeight           BIT NOT NULL DEFAULT 0,
+            UNIQUE (OrganisationID, CategorieID, Genre)
         );
     """);
 
@@ -676,6 +690,159 @@ using (var scope = app.Services.CreateScope())
             (N'Global Combat Network', @USA, 2015, 1,
              N'Réseau de promotions affiliées qui organise des événements dans des marchés secondaires : villes moyennes, pays émergents. Bonne porte d''entrée pour les nouveaux talents.', 1)
         END
+    """);
+
+    // Ajouter la catégorie Open Weight dans CategoriePoidsH si absente
+    db.Database.ExecuteSqlRaw("""
+        IF NOT EXISTS (SELECT 1 FROM CategoriePoidsH WHERE Nom = N'Open Weight')
+            INSERT INTO CategoriePoidsH (Nom, PoidsMaxKg, Genre) VALUES (N'Open Weight', 999.9, 'H');
+    """);
+
+    // Seed catégories par organisation (idempotent : insert only if org has no categories yet)
+    db.Database.ExecuteSqlRaw("""
+        DECLARE @owId INT = (SELECT CategorieID FROM CategoriePoidsH WHERE Nom = N'Open Weight');
+
+        -- ── UFC ──────────────────────────────────────────────────────────────────
+        IF NOT EXISTS (SELECT 1 FROM OrganisationCategorie oc
+            JOIN CombatOrganisation co ON co.OrganisationID = oc.OrganisationID
+            WHERE co.Nom = N'Ultimate Fighting Championship')
+        BEGIN
+            DECLARE @UFC INT = (SELECT TOP 1 OrganisationID FROM CombatOrganisation WHERE Nom = N'Ultimate Fighting Championship');
+            IF @UFC IS NOT NULL
+            BEGIN
+                INSERT INTO OrganisationCategorie (OrganisationID, CategorieID, Genre, AnneeIntroduction, EstOpenWeight) VALUES
+                (@UFC, @owId, 'H', 1993, 1),
+                (@UFC, 9,     'H', 1997, 0),
+                (@UFC, 5,     'H', 1998, 0),
+                (@UFC, 7,     'H', 2001, 0),
+                (@UFC, 6,     'H', 2001, 0),
+                (@UFC, 8,     'H', 2001, 0),
+                (@UFC, 3,     'H', 2010, 0),
+                (@UFC, 4,     'H', 2010, 0),
+                (@UFC, 2,     'H', 2012, 0),
+                (@UFC, 1,     'H', 2014, 0),
+                (@UFC, 3,     'F', 2012, 0),
+                (@UFC, 1,     'F', 2014, 0),
+                (@UFC, 2,     'F', 2017, 0),
+                (@UFC, 4,     'F', 2017, 0);
+            END
+        END
+
+        -- ── PRIDE ────────────────────────────────────────────────────────────────
+        IF NOT EXISTS (SELECT 1 FROM OrganisationCategorie oc
+            JOIN CombatOrganisation co ON co.OrganisationID = oc.OrganisationID
+            WHERE co.Nom = N'PRIDE Fighting Championships')
+        BEGIN
+            DECLARE @PRIDE INT = (SELECT TOP 1 OrganisationID FROM CombatOrganisation WHERE Nom = N'PRIDE Fighting Championships');
+            IF @PRIDE IS NOT NULL
+            BEGIN
+                INSERT INTO OrganisationCategorie (OrganisationID, CategorieID, Genre, AnneeIntroduction, EstOpenWeight) VALUES
+                (@PRIDE, @owId, 'H', 1997, 1),
+                (@PRIDE, 9,     'H', 2000, 0),
+                (@PRIDE, 8,     'H', 2001, 0),
+                (@PRIDE, 6,     'H', 2002, 0),
+                (@PRIDE, 5,     'H', 2005, 0);
+            END
+        END
+
+        -- ── Pancrase ─────────────────────────────────────────────────────────────
+        IF NOT EXISTS (SELECT 1 FROM OrganisationCategorie oc
+            JOIN CombatOrganisation co ON co.OrganisationID = oc.OrganisationID
+            WHERE co.Nom = N'Pancrase')
+        BEGIN
+            DECLARE @PAN INT = (SELECT TOP 1 OrganisationID FROM CombatOrganisation WHERE Nom = N'Pancrase');
+            IF @PAN IS NOT NULL
+            BEGIN
+                INSERT INTO OrganisationCategorie (OrganisationID, CategorieID, Genre, AnneeIntroduction, EstOpenWeight) VALUES
+                (@PAN, @owId, 'H', 1993, 1),
+                (@PAN, 9,     'H', 1998, 0),
+                (@PAN, 7,     'H', 1998, 0),
+                (@PAN, 5,     'H', 1998, 0);
+            END
+        END
+
+        -- ── Shooto ───────────────────────────────────────────────────────────────
+        IF NOT EXISTS (SELECT 1 FROM OrganisationCategorie oc
+            JOIN CombatOrganisation co ON co.OrganisationID = oc.OrganisationID
+            WHERE co.Nom = N'Shooto')
+        BEGIN
+            DECLARE @SHO INT = (SELECT TOP 1 OrganisationID FROM CombatOrganisation WHERE Nom = N'Shooto');
+            IF @SHO IS NOT NULL
+            BEGIN
+                INSERT INTO OrganisationCategorie (OrganisationID, CategorieID, Genre, AnneeIntroduction, EstOpenWeight) VALUES
+                (@SHO, 6, 'H', 1989, 0),
+                (@SHO, 7, 'H', 1989, 0),
+                (@SHO, 5, 'H', 1989, 0),
+                (@SHO, 4, 'H', 1995, 0),
+                (@SHO, 3, 'H', 1998, 0);
+            END
+        END
+
+        -- ── Strikeforce ──────────────────────────────────────────────────────────
+        IF NOT EXISTS (SELECT 1 FROM OrganisationCategorie oc
+            JOIN CombatOrganisation co ON co.OrganisationID = oc.OrganisationID
+            WHERE co.Nom = N'Strikeforce')
+        BEGIN
+            DECLARE @SF INT = (SELECT TOP 1 OrganisationID FROM CombatOrganisation WHERE Nom = N'Strikeforce');
+            IF @SF IS NOT NULL
+            BEGIN
+                INSERT INTO OrganisationCategorie (OrganisationID, CategorieID, Genre, AnneeIntroduction, EstOpenWeight) VALUES
+                (@SF, 9, 'H', 2006, 0),
+                (@SF, 8, 'H', 2006, 0),
+                (@SF, 7, 'H', 2006, 0),
+                (@SF, 6, 'H', 2008, 0),
+                (@SF, 5, 'H', 2008, 0),
+                (@SF, 3, 'F', 2009, 0);
+            END
+        END
+
+        -- ── Bellator MMA ─────────────────────────────────────────────────────────
+        IF NOT EXISTS (SELECT 1 FROM OrganisationCategorie oc
+            JOIN CombatOrganisation co ON co.OrganisationID = oc.OrganisationID
+            WHERE co.Nom = N'Bellator MMA')
+        BEGIN
+            DECLARE @BEL INT = (SELECT TOP 1 OrganisationID FROM CombatOrganisation WHERE Nom = N'Bellator MMA');
+            IF @BEL IS NOT NULL
+            BEGIN
+                INSERT INTO OrganisationCategorie (OrganisationID, CategorieID, Genre, AnneeIntroduction, EstOpenWeight) VALUES
+                (@BEL, 9, 'H', 2009, 0),
+                (@BEL, 8, 'H', 2009, 0),
+                (@BEL, 7, 'H', 2009, 0),
+                (@BEL, 6, 'H', 2009, 0),
+                (@BEL, 5, 'H', 2009, 0),
+                (@BEL, 4, 'H', 2009, 0),
+                (@BEL, 3, 'H', 2014, 0),
+                (@BEL, 2, 'F', 2017, 0);
+            END
+        END
+
+        -- ── Catégories par défaut pour les orgas non listées ─────────────────────
+        -- Pre-2000 : Open Weight H
+        INSERT INTO OrganisationCategorie (OrganisationID, CategorieID, Genre, AnneeIntroduction, EstOpenWeight)
+        SELECT o.OrganisationID, @owId, 'H', o.AnneeCreation, 1
+        FROM CombatOrganisation o
+        WHERE o.AnneeCreation < 2000
+          AND NOT EXISTS (SELECT 1 FROM OrganisationCategorie WHERE OrganisationID = o.OrganisationID);
+
+        -- 2000-2009 : catégories 5-9 H
+        INSERT INTO OrganisationCategorie (OrganisationID, CategorieID, Genre, AnneeIntroduction, EstOpenWeight)
+        SELECT o.OrganisationID, cat.CategorieID, 'H', o.AnneeCreation, 0
+        FROM CombatOrganisation o
+        CROSS JOIN (SELECT CategorieID FROM CategoriePoidsH WHERE CategorieID BETWEEN 5 AND 9) AS cat
+        WHERE o.AnneeCreation BETWEEN 2000 AND 2009
+          AND NOT EXISTS (SELECT 1 FROM OrganisationCategorie WHERE OrganisationID = o.OrganisationID);
+
+        -- 2010+ : toutes catégories H + F 1-3
+        INSERT INTO OrganisationCategorie (OrganisationID, CategorieID, Genre, AnneeIntroduction, EstOpenWeight)
+        SELECT o.OrganisationID, c.CategorieID, c.Genre, o.AnneeCreation, 0
+        FROM CombatOrganisation o
+        CROSS JOIN (
+            SELECT CategorieID, 'H' AS Genre FROM CategoriePoidsH WHERE CategorieID BETWEEN 1 AND 9
+            UNION ALL
+            SELECT CategorieID, 'F' AS Genre FROM CategoriePoidsF WHERE CategorieID BETWEEN 1 AND 3
+        ) AS c(CategorieID, Genre)
+        WHERE o.AnneeCreation >= 2010
+          AND NOT EXISTS (SELECT 1 FROM OrganisationCategorie WHERE OrganisationID = o.OrganisationID);
     """);
 
     // Corriger les dates de naissance invalides (combattants trop jeunes pour l'ère 1985)

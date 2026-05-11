@@ -9,7 +9,8 @@ public class RankingService(MmaContext db)
 {
     public async Task MettreAJourApresCombat(
         int partieId, int combattantId, int adversaireId, int organisationId,
-        bool estVictoire, bool estNul, string methode, int prestigeOrga)
+        bool estVictoire, bool estNul, string methode, int prestigeOrga,
+        int? rankCatId = null)
     {
         int pointsBase    = estNul ? 30 : (estVictoire ? 100 : 10);
         int bonusMethode  = estVictoire ? methode switch
@@ -19,33 +20,64 @@ public class RankingService(MmaContext db)
             _             => 0
         } : 0;
 
-        double prestigeMult  = Math.Max(0.5, prestigeOrga / 3.0);
-        int    pointsOrga    = (int)Math.Round((pointsBase + bonusMethode) * prestigeMult);
+        double prestigeMult   = Math.Max(0.5, prestigeOrga / 3.0);
+        int    pointsOrga     = (int)Math.Round((pointsBase + bonusMethode) * prestigeMult);
         int    pointsMondiaux = (int)Math.Round(pointsOrga * (prestigeOrga / 2.0));
 
         var combattant = await db.Combattants.FindAsync(combattantId);
         if (combattant is null) return;
 
+        int combCatId = rankCatId ?? await DeterminerCategoriePourOrga(partieId, organisationId, combattant.Genre, combattant.CategorieID);
+
         await UpsertEntry(partieId, combattantId, organisationId, combattant.Genre,
-            combattant.CategorieID, pointsOrga, pointsMondiaux);
+            combCatId, pointsOrga, pointsMondiaux);
 
         var adversaire = await db.Combattants.FindAsync(adversaireId);
+        int advCatId   = combCatId;
         if (adversaire is not null)
         {
-            int pointsAdvBase   = estNul ? 30 : (estVictoire ? 10 : 100);
-            int bonusAdv        = !estVictoire && !estNul ? bonusMethode : 0;
-            int pointsOrgaAdv   = (int)Math.Round((pointsAdvBase + bonusAdv) * prestigeMult);
+            int pointsAdvBase     = estNul ? 30 : (estVictoire ? 10 : 100);
+            int bonusAdv          = !estVictoire && !estNul ? bonusMethode : 0;
+            int pointsOrgaAdv     = (int)Math.Round((pointsAdvBase + bonusAdv) * prestigeMult);
             int pointsMondiauxAdv = (int)Math.Round(pointsOrgaAdv * (prestigeOrga / 2.0));
 
+            advCatId = rankCatId ?? await DeterminerCategoriePourOrga(partieId, organisationId, adversaire.Genre, adversaire.CategorieID);
             await UpsertEntry(partieId, adversaireId, organisationId, adversaire.Genre,
-                adversaire.CategorieID, pointsOrgaAdv, pointsMondiauxAdv);
+                advCatId, pointsOrgaAdv, pointsMondiauxAdv);
         }
 
         await db.SaveChangesAsync();
 
-        await RecalculerRangs(partieId, organisationId, combattant.Genre, combattant.CategorieID);
-        if (adversaire is not null && adversaire.CategorieID != combattant.CategorieID)
-            await RecalculerRangs(partieId, organisationId, adversaire.Genre, adversaire.CategorieID);
+        await RecalculerRangs(partieId, organisationId, combattant.Genre, combCatId);
+        if (adversaire is not null && advCatId != combCatId)
+            await RecalculerRangs(partieId, organisationId, adversaire.Genre, advCatId);
+    }
+
+    private async Task<int> DeterminerCategoriePourOrga(int partieId, int organisationId, string genre, int naturalCatId)
+    {
+        var annee = await db.Parties
+            .Where(p => p.PartieID == partieId)
+            .Select(p => p.AnneeActuelle)
+            .FirstOrDefaultAsync();
+
+        var orgCats = await db.OrganisationCategories
+            .Where(oc => oc.OrganisationID == organisationId
+                      && oc.Genre == genre
+                      && oc.AnneeIntroduction <= annee)
+            .ToListAsync();
+
+        if (!orgCats.Any()) return naturalCatId;
+
+        if (orgCats.Any(oc => !oc.EstOpenWeight && oc.CategorieID == naturalCatId))
+            return naturalCatId;
+
+        if (orgCats.Any(oc => oc.EstOpenWeight))
+        {
+            var owCat = await db.CategoriesPoidsH.FirstOrDefaultAsync(c => c.Nom == "Open Weight");
+            if (owCat is not null) return owCat.CategorieID;
+        }
+
+        return naturalCatId;
     }
 
     private async Task UpsertEntry(int partieId, int combattantId, int orgId,

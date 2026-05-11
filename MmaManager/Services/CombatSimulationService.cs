@@ -79,6 +79,23 @@ public class CombatSimulationService
         double tailleA = adverse.TailleCm ?? 178;
         double heightAdvantage = Math.Clamp((tailleN - tailleA) / 25.0, -1.0, 1.0);
 
+        // ── Facteur de poids ──
+        double poidsN = (double)(notre.PoidsReelKg  ?? 80m);
+        double poidsA = (double)(adverse.PoidsReelKg ?? 80m);
+        double ecartPoids = poidsN - poidsA;
+
+        double weightStrikingBonus = 0, weightTdPenalty = 0;
+        double weightSpeedBonus    = 0, weightCardioBonus = 0, weightKoMult = 1.0;
+
+        if (Math.Abs(ecartPoids) > 5)
+        {
+            weightStrikingBonus = Math.Clamp(ecartPoids / 5.0,   -8.0, 8.0);
+            weightTdPenalty     = Math.Clamp(ecartPoids * 0.006, -0.05, 0.05);
+            weightSpeedBonus    = Math.Clamp(-ecartPoids / 5.0,  -6.0, 6.0);
+            weightCardioBonus   = Math.Clamp(-ecartPoids * 0.002,-0.08, 0.08);
+            weightKoMult        = 1.0 + Math.Clamp(ecartPoids / 50.0, -0.25, 0.25);
+        }
+
         // ── Parse gameplan multi-axes (compatible avec les anciennes chaînes) ──
         string approche = "Balanced", distance = "Moyenne", cibles = "Mixte", rythme = "Normal";
         if (gameplan.StartsWith("{"))
@@ -136,8 +153,8 @@ public class CombatSimulationService
         else if (approche == "Grappling") { tdN  = Math.Min(0.90, tdN * 1.8); tdA *= 0.7; }
         else if (approche == "Clinch")    { tdN  = Math.Min(0.90, tdN * 1.3); tdA *= 0.9; }
 
-        tdN = Math.Clamp(tdN - heightAdvantage * 0.05, 0, 0.90);
-        tdA = Math.Clamp(tdA + heightAdvantage * 0.05, 0, 0.90);
+        tdN = Math.Clamp(tdN - heightAdvantage * 0.05 - weightTdPenalty, 0, 0.90);
+        tdA = Math.Clamp(tdA + heightAdvantage * 0.05 + weightTdPenalty, 0, 0.90);
 
         string[] koTypes  = ["KO", "TKO (coups au visage)", "TKO (coups)"];
         string[] subTypes = [
@@ -149,8 +166,8 @@ public class CombatSimulationService
 
         for (int rd = 1; rd <= totalRounds && !combatTermine; rd++)
         {
-            double fatigueMult  = CalculerFatigue(rd, totalRounds, notre.StatCardio);
-            double fatigueMultA = CalculerFatigue(rd, totalRounds, adverse.StatCardio);
+            double fatigueMult  = CalculerFatigue(rd, totalRounds, notre.StatCardio)  + weightCardioBonus;
+            double fatigueMultA = CalculerFatigue(rd, totalRounds, adverse.StatCardio) - weightCardioBonus;
 
             // Modificateurs rythme
             double rythmeMultN = rythme == "Agressif" ? (rd <= 2 ? 1.12 : 0.88)
@@ -195,12 +212,16 @@ public class CombatSimulationService
                                   + (ScoreCombos(notre) + distCombosBonus) * 0.15
                                   + (FightIQ(notre) + fightIQBonusN)      * 0.15
                                   + distFootworkBonus
-                                  + effectiveReach * 6.0 + Bruit();
+                                  + effectiveReach * 6.0
+                                  + weightStrikingBonus + weightSpeedBonus
+                                  + Bruit();
                         seqScoreA = StrikingDistance(adverse) * 0.35 * effA
                                   + DefenseDebout(adverse)    * 0.15 * (cibles == "Tete" ? 1.10 : 1.0)
                                   + ScoreCombos(adverse)      * 0.15
                                   + FightIQ(adverse)          * 0.15
-                                  - effectiveReach * 6.0 + Bruit()
+                                  - effectiveReach * 6.0
+                                  - weightStrikingBonus - weightSpeedBonus
+                                  + Bruit()
                                   - legPenaltyA;
                         actionsRound.Add(NarratifDebout(notre, adverse, seqScoreN, seqScoreA, rng));
                         break;
@@ -267,10 +288,11 @@ public class CombatSimulationService
 
                 if (phase == Phase.Debout)
                 {
-                    double reachKoBonus = 1.0 + reachAdvantage * (notreAtt ? 0.15 : -0.15);
+                    double reachKoBonus  = 1.0 + reachAdvantage * (notreAtt ? 0.15 : -0.15);
+                    double weightKoBonus = notreAtt ? weightKoMult : (2.0 - weightKoMult);
                     double koBase = StrikingDistance(att) / 100.0
                                   * Math.Max(0.15, 1.0 - def.StatMentoniere / 100.0);
-                    koChance = koBase * 0.12 * koMult * ciblesKoMult * rythmeKoMult * reachKoBonus * dommageMultDef;
+                    koChance = koBase * 0.12 * koMult * ciblesKoMult * rythmeKoMult * reachKoBonus * weightKoBonus * dommageMultDef;
                 }
                 else if (phase == Phase.Clinch)
                 {

@@ -158,10 +158,27 @@ public class RosterHistoriqueService(MmaContext db)
 
                 if (org is not null)
                 {
-                    int rang          = snapshot.Classement.Rang;
-                    bool estChampion  = snapshot.Classement.Champion;
-                    int points        = estChampion ? 5000 : Math.Max(0, (16 - rang)) * 300;
-                    int ptsMondial    = estChampion ? 8000 : Math.Max(0, (16 - rang)) * 500;
+                    var orgCats = await db.OrganisationCategories
+                        .Where(oc => oc.OrganisationID == org.OrganisationID
+                                  && oc.Genre == f.Genre
+                                  && oc.AnneeIntroduction <= anneeDepart)
+                        .ToListAsync();
+
+                    int? rankingCatId = null;
+                    if (orgCats.Any(oc => !oc.EstOpenWeight && oc.CategorieID == f.CategorieH))
+                        rankingCatId = f.CategorieH;
+                    else if (orgCats.Any(oc => oc.EstOpenWeight))
+                    {
+                        var owCat = await db.CategoriesPoidsH.FirstOrDefaultAsync(c => c.Nom == "Open Weight");
+                        if (owCat is not null) rankingCatId = owCat.CategorieID;
+                    }
+
+                    if (!rankingCatId.HasValue) goto skipRanking;
+
+                    int rang         = snapshot.Classement.Rang;
+                    bool estChampion = snapshot.Classement.Champion;
+                    int points       = estChampion ? 5000 : Math.Max(0, (16 - rang)) * 300;
+                    int ptsMondial   = estChampion ? 8000 : Math.Max(0, (16 - rang)) * 500;
 
                     db.RankingEntries.Add(new RankingEntry
                     {
@@ -169,7 +186,7 @@ public class RosterHistoriqueService(MmaContext db)
                         CombattantID   = combattant.CombattantID,
                         OrganisationID = org.OrganisationID,
                         Genre          = f.Genre,
-                        CategorieID    = f.CategorieH,
+                        CategorieID    = rankingCatId.Value,
                         Points         = points,
                         Rang           = estChampion ? 0 : rang,
                         PointsMondiaux = ptsMondial
@@ -180,7 +197,7 @@ public class RosterHistoriqueService(MmaContext db)
                         var ceintureExistante = await db.ChampionCeintures
                             .FirstOrDefaultAsync(c => c.PartieID == partieId
                                 && c.OrganisationID == org.OrganisationID
-                                && c.CategorieID == f.CategorieH
+                                && c.CategorieID == rankingCatId.Value
                                 && c.Genre == f.Genre);
 
                         if (ceintureExistante is null)
@@ -189,7 +206,7 @@ public class RosterHistoriqueService(MmaContext db)
                             {
                                 PartieID       = partieId,
                                 OrganisationID = org.OrganisationID,
-                                CategorieID    = f.CategorieH,
+                                CategorieID    = rankingCatId.Value,
                                 Genre          = f.Genre,
                                 CombattantID   = combattant.CombattantID,
                                 TourObtention  = 0,
@@ -197,6 +214,8 @@ public class RosterHistoriqueService(MmaContext db)
                             });
                         }
                     }
+
+                    skipRanking:;
                 }
             }
         }

@@ -18,10 +18,12 @@ const loading          = ref(true)
 const step             = ref(1)
 
 // Formulaire de planification
-const expanded    = ref(null)
-const adversaires = ref([])
-const loadingAdv  = ref(false)
-const form = ref({ adversaireID: null, organisationID: null, delaiMois: 1,
+const expanded        = ref(null)
+const adversaires     = ref([])
+const loadingAdv      = ref(false)
+const categoriesOrga  = ref([])
+const form = ref({ adversaireID: null, organisationID: null, categorieID: null,
+  openWeight: false, delaiMois: 1,
   gameplan: { approche: 'Balanced', distance: 'Moyenne', cibles: 'Mixte', rythme: 'Normal' } })
 
 const approches = [
@@ -52,7 +54,7 @@ const saving = ref(false)
 const dateJeu = computed(() => {
   const MOIS = ['Janvier','Février','Mars','Avril','Mai','Juin',
                 'Juillet','Août','Septembre','Octobre','Novembre','Décembre']
-  return `${MOIS[(props.partie.moisActuel ?? 1) - 1]} ${props.partie.anneeActuelle ?? 1985}`
+  return `${MOIS[(props.partie.moisActuel ?? 1) - 1]} ${props.partie.anneeActuelle ?? 1993}`
 })
 
 const selectedAdv = computed(() =>
@@ -127,7 +129,7 @@ function combatPourFighter(combattantID) {
 
 function tourVersDate(tour) {
   let mois = (props.partie.moisActuel ?? 1) + (tour - props.partie.tourActuel)
-  let annee = props.partie.anneeActuelle ?? 1985
+  let annee = props.partie.anneeActuelle ?? 1993
   while (mois > 12) { mois -= 12; annee++ }
   const MOIS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc']
   return `${MOIS[mois - 1]} ${annee}`
@@ -154,15 +156,38 @@ async function charger() {
   }
 }
 
+async function chargerCategoriesOrga(orgId) {
+  if (!orgId) { categoriesOrga.value = []; return }
+  const res = await fetch(`${API}/combats-planifies/organisations/${orgId}/categories`, {
+    headers: props.authHeaders()
+  })
+  if (!res.ok) { categoriesOrga.value = []; return }
+  const all = await res.json()
+  // Filtrer par genre du fighter courant
+  const genre = ecurie.value.find(f => f.combattantID === expanded.value)?.genre ?? 'H'
+  categoriesOrga.value = all.filter(c => c.genre === genre)
+  // Auto-sélection si une seule catégorie
+  if (categoriesOrga.value.length === 1) {
+    form.value.categorieID = categoriesOrga.value[0].categorieID
+    form.value.openWeight  = categoriesOrga.value[0].estOpenWeight
+  } else {
+    form.value.categorieID = null
+    form.value.openWeight  = false
+  }
+}
+
 async function chargerAdversaires(combattantID) {
   loadingAdv.value = true
   adversaires.value = []
   form.value.adversaireID = null
   try {
-    const orgParam = form.value.organisationID ? `?organisationID=${form.value.organisationID}` : ''
-    const res = await fetch(`${API}/combats-planifies/adversaires/${combattantID}${orgParam}`, {
-      headers: props.authHeaders()
-    })
+    const params = new URLSearchParams()
+    if (form.value.organisationID) params.set('organisationID', form.value.organisationID)
+    if (form.value.openWeight)     params.set('openWeight', 'true')
+    const res = await fetch(
+      `${API}/combats-planifies/adversaires/${combattantID}?${params}`,
+      { headers: props.authHeaders() }
+    )
     if (res.ok) adversaires.value = await res.json()
   } finally {
     loadingAdv.value = false
@@ -186,15 +211,21 @@ async function ouvrirPlanification(combattantID) {
   if (expanded.value === combattantID) { expanded.value = null; return }
   expanded.value = combattantID
   step.value = 1
-  form.value = { adversaireID: null, organisationID: null, delaiMois: 1,
+  form.value = { adversaireID: null, organisationID: null, categorieID: null,
+    openWeight: false, delaiMois: 1,
     gameplan: { approche: 'Balanced', distance: 'Moyenne', cibles: 'Mixte', rythme: 'Normal' } }
   adversaires.value = []
-  await chargerAdversaires(combattantID)
+  categoriesOrga.value = []
 }
 
-// Recharger les adversaires quand l'organisation change
-watch(() => form.value.organisationID, (newVal, oldVal) => {
+// Recharger catégories + adversaires quand l'organisation change
+watch(() => form.value.organisationID, async (newVal, oldVal) => {
   if (newVal !== oldVal && expanded.value) {
+    await chargerCategoriesOrga(newVal)
+    // Si l'org n'a que l'Open Weight, passer directement à l'étape 2
+    if (categoriesOrga.value.length === 1 && categoriesOrga.value[0].estOpenWeight) {
+      step.value = 2
+    }
     chargerAdversaires(expanded.value)
   }
 })
@@ -373,14 +404,36 @@ onMounted(charger)
                 <span class="org-annee">{{ org.anneeCreation }}{{ org.estFictive ? ' · Circuit local' : '' }}</span>
               </div>
             </div>
+            <!-- Catégories de l'organisation sélectionnée -->
+            <div v-if="form.organisationID && categoriesOrga.length > 0" class="cat-picker">
+              <span class="plan-label">Catégorie de poids</span>
+              <div class="cat-list">
+                <button
+                  v-for="cat in categoriesOrga"
+                  :key="cat.categorieID + cat.genre"
+                  class="cat-btn"
+                  :class="{ selected: form.categorieID === cat.categorieID }"
+                  @click="form.categorieID = cat.categorieID; form.openWeight = cat.estOpenWeight; chargerAdversaires(fighter.combattantID)"
+                >
+                  {{ cat.estOpenWeight ? '⚖️' : '🏷️' }} {{ cat.nom }}
+                </button>
+              </div>
+            </div>
+            <div v-else-if="form.organisationID && categoriesOrga.length === 0" class="plan-empty">
+              Aucune catégorie active dans cette organisation pour cette ère.
+            </div>
+
             <div class="step-nav">
               <button class="btn-annuler" @click="expanded = null">Annuler</button>
-              <button class="btn-next" :disabled="!form.organisationID" @click="step = 2">Adversaire →</button>
+              <button class="btn-next" :disabled="!form.organisationID || !form.categorieID" @click="step = 2">Adversaire →</button>
             </div>
           </div>
 
           <!-- ── Étape 2 : Adversaire + Tale of the Tape ── -->
           <div v-if="step === 2" class="step-content">
+            <div v-if="form.openWeight" class="ow-banner">
+              ⚖️ Cette organisation combat en Open Weight — tous les poids sont acceptés
+            </div>
             <div class="tape-layout">
 
               <!-- Adversaire list -->
@@ -1054,6 +1107,17 @@ onMounted(charger)
 .contrat-exclusif { font-size: .78rem; font-weight: 600; padding: 1px 8px; border-radius: 8px; }
 .excl-oui { background: rgba(239,68,68,.15); color: #f87171; }
 .excl-non { background: rgba(34,197,94,.12); color: #4ade80; }
+
+/* Open Weight banner */
+.ow-banner {
+  padding: 8px 14px;
+  background: rgba(99,102,241,.1);
+  border: 1px solid rgba(99,102,241,.25);
+  border-radius: 8px;
+  font-size: .8rem;
+  color: #a5b4fc;
+  font-weight: 600;
+}
 
 /* Empty state */
 .empty-state { text-align: center; padding: 48px 24px; color: #475569; }

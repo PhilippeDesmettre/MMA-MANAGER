@@ -29,10 +29,24 @@ async function chargerOrganisations() {
 }
 
 async function chargerCategories() {
-  const res = await fetch(`${API}/rankings/categories?genre=${selectedGenre.value}`, { headers: props.authHeaders() })
-  if (res.ok) {
-    categories.value = await res.json()
-    if (categories.value.length) selectedCat.value = categories.value[4]?.categorieID ?? categories.value[0].categorieID
+  let url, res
+  if (mode.value === 'orga' && selectedOrg.value) {
+    url = `${API}/rankings/organisations/${selectedOrg.value}/categories`
+    res = await fetch(url, { headers: props.authHeaders() })
+    if (res.ok) {
+      const all = await res.json()
+      categories.value = all
+        .filter(c => c.genre === selectedGenre.value)
+        .map(c => ({ categorieID: c.categorieID, nom: c.nom }))
+    }
+  } else {
+    url = `${API}/rankings/categories?genre=${selectedGenre.value}`
+    res = await fetch(url, { headers: props.authHeaders() })
+    if (res.ok) categories.value = await res.json()
+  }
+  if (categories.value.length) {
+    const lw = categories.value.find(c => c.categorieID === 5)
+    selectedCat.value = lw?.categorieID ?? categories.value[0]?.categorieID ?? null
   }
 }
 
@@ -65,8 +79,15 @@ async function chargerClassement() {
 }
 
 watch(mode, async () => {
-  if (mode.value !== 'p4p' && !categories.value.length) await chargerCategories()
+  if (mode.value !== 'p4p') await chargerCategories()
   await chargerClassement()
+})
+
+watch(selectedOrg, async () => {
+  if (mode.value === 'orga') {
+    await chargerCategories()
+    await chargerClassement()
+  }
 })
 
 watch(selectedGenre, async () => {

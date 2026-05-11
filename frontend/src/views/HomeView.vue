@@ -14,7 +14,7 @@ const showCharger  = ref(false)
 const chargingId   = ref(null)
 
 const EPOQUES = {
-  NoRules:   { label: 'Underground Era', years: '1985 – 1999', icon: '🔥', color: '#ef4444' },
+  NoRules:   { label: 'Underground Era', years: '1993 – 1999', icon: '🔥', color: '#ef4444' },
   GoldenAge: { label: 'Golden Age',      years: '2000 – 2012', icon: '🏆', color: '#f59e0b' },
   Modern:    { label: 'Modern MMA',      years: '2013 – Auj.', icon: '🧠', color: '#6366f1' },
 }

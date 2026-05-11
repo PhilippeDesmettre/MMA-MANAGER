@@ -26,7 +26,7 @@ const EPOQUES = [
     key: 'NoRules',
     icon: '🔥',
     label: 'Underground Era',
-    years: '1985 – 1999',
+    years: '1993 – 1999',
     desc: 'Vale Tudo, UFC origines — presque aucune règle, styles opposés, combattants ultra-spécialisés. Imprévisible et brutal.',
     color: '#ef4444',
   },

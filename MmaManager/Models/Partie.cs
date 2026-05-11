@@ -24,7 +24,7 @@ public class Partie
 
     public int TourActuel    { get; set; } = 1;
     public int MoisActuel    { get; set; } = 1;
-    public int AnneeActuelle { get; set; } = 1985;
+    public int AnneeActuelle { get; set; } = 1993;
     public int PrestigeEcurie { get; set; } = 1;
 
     // Navigation

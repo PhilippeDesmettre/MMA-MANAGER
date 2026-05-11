@@ -80,6 +80,30 @@ public class RankingsController(MmaContext db, RankingService rankingService) : 
         return Ok(orgs);
     }
 
+    [HttpGet("organisations/{orgId:int}/categories")]
+    public async Task<ActionResult> GetCategoriesOrg(int orgId)
+    {
+        var partie = await PartieActive();
+        if (partie is null) return NotFound();
+
+        var cats = await db.OrganisationCategories
+            .Where(oc => oc.OrganisationID == orgId && oc.AnneeIntroduction <= partie.AnneeActuelle)
+            .ToListAsync();
+
+        var catsH = await db.CategoriesPoidsH.ToDictionaryAsync(c => c.CategorieID, c => c.Nom);
+        var catsF = await db.CategoriesPoidsF.ToDictionaryAsync(c => c.CategorieID, c => c.Nom);
+
+        return Ok(cats.Select(c => new
+        {
+            c.CategorieID,
+            c.Genre,
+            c.EstOpenWeight,
+            Nom = c.EstOpenWeight ? "Open Weight"
+                : (c.Genre == "H" ? catsH.GetValueOrDefault(c.CategorieID, "?")
+                                  : catsF.GetValueOrDefault(c.CategorieID, "?"))
+        }));
+    }
+
     [HttpGet("categories")]
     public async Task<ActionResult> GetCategories([FromQuery] string genre = "H")
     {

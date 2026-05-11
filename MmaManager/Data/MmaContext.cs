@@ -28,6 +28,7 @@ public class MmaContext(DbContextOptions<MmaContext> options) : DbContext(option
     public DbSet<Rivalite>              Rivalites               { get; set; }
     public DbSet<RankingEntry>          RankingEntries          { get; set; }
     public DbSet<ChampionCeinture>      ChampionCeintures       { get; set; }
+    public DbSet<OrganisationCategorie> OrganisationCategories  { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -100,6 +101,13 @@ public class MmaContext(DbContextOptions<MmaContext> options) : DbContext(option
             .HasForeignKey(o => o.PaysOrigineID)
             .OnDelete(DeleteBehavior.SetNull)
             .IsRequired(false);
+
+        // OrganisationCategorie -> CombatOrganisation
+        modelBuilder.Entity<OrganisationCategorie>()
+            .HasOne(oc => oc.Organisation).WithMany().HasForeignKey(oc => oc.OrganisationID)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<OrganisationCategorie>()
+            .HasIndex(oc => new { oc.OrganisationID, oc.CategorieID, oc.Genre }).IsUnique();
 
         // CombatOrganisation -> Partie (orgs locales)
         modelBuilder.Entity<CombatOrganisation>()

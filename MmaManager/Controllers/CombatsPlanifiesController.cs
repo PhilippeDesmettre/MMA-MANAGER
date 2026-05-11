@@ -88,9 +88,37 @@ public class CombatsPlanifiesController(MmaContext db) : ControllerBase
         }));
     }
 
-    // GET /api/combats-planifies/adversaires/{combattantID}?organisationID=X
+    // GET /api/combats-planifies/organisations/{orgId}/categories
+    [HttpGet("organisations/{orgId:int}/categories")]
+    public async Task<ActionResult> GetCategoriesOrga(int orgId)
+    {
+        var partie = await PartieActive();
+        if (partie is null) return NotFound();
+
+        var cats = await db.OrganisationCategories
+            .Where(oc => oc.OrganisationID == orgId && oc.AnneeIntroduction <= partie.AnneeActuelle)
+            .ToListAsync();
+
+        var catsH = await db.CategoriesPoidsH.ToDictionaryAsync(c => c.CategorieID, c => c.Nom);
+        var catsF = await db.CategoriesPoidsF.ToDictionaryAsync(c => c.CategorieID, c => c.Nom);
+
+        return Ok(cats.Select(c => new
+        {
+            c.CategorieID,
+            c.Genre,
+            c.EstOpenWeight,
+            Nom = c.EstOpenWeight ? "Open Weight"
+                : (c.Genre == "H" ? catsH.GetValueOrDefault(c.CategorieID, "?")
+                                  : catsF.GetValueOrDefault(c.CategorieID, "?"))
+        }));
+    }
+
+    // GET /api/combats-planifies/adversaires/{combattantID}?organisationID=X&openWeight=false
     [HttpGet("adversaires/{combattantID:int}")]
-    public async Task<ActionResult<IEnumerable<AdversaireDto>>> GetAdversaires(int combattantID, [FromQuery] int? organisationID = null)
+    public async Task<ActionResult<IEnumerable<AdversaireDto>>> GetAdversaires(
+        int combattantID,
+        [FromQuery] int?  organisationID = null,
+        [FromQuery] bool  openWeight     = false)
     {
         var partie = await PartieActive();
         if (partie is null) return NotFound();
@@ -119,20 +147,15 @@ public class CombatsPlanifiesController(MmaContext db) : ControllerBase
         }
 
         // Fourchette d'overall basée sur le prestige de l'organisation
-        // Prestige 1 : adversaires 20-55  (amateurs)
-        // Prestige 2 : adversaires 35-65  (régional)
-        // Prestige 3 : adversaires 45-75  (national)
-        // Prestige 4 : adversaires 55-85  (international)
-        // Prestige 5 : adversaires 65-99  (élite)
         int overallMin = Math.Max(0, prestigeOrg * 12 + 8);
         int overallMax = Math.Min(99, prestigeOrg * 12 + 43);
 
         var adversaires = await db.Combattants
             .Where(c => !ecurie.Contains(c.CombattantID)
-                     && c.CategorieID == combattant.CategorieID
                      && c.Genre       == combattant.Genre
                      && c.Overall     >= overallMin
-                     && c.Overall     <= overallMax)
+                     && c.Overall     <= overallMax
+                     && (openWeight || c.CategorieID == combattant.CategorieID))
             .OrderByDescending(c => c.Overall)
             .Take(15)
             .AsNoTracking()

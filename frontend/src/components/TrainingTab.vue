@@ -35,7 +35,7 @@ const dateJeu = computed(() => {
     'Janvier','Février','Mars','Avril','Mai','Juin',
     'Juillet','Août','Septembre','Octobre','Novembre','Décembre',
   ]
-  return `${mois[(props.partie.moisActuel ?? 1) - 1]} ${props.partie.anneeActuelle ?? 1985}`
+  return `${mois[(props.partie.moisActuel ?? 1) - 1]} ${props.partie.anneeActuelle ?? 1993}`
 })
 
 // Coach sélectionné par combattant : Map<combattantID, {id, type}>
