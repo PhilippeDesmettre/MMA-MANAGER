@@ -213,7 +213,7 @@ public class ProspectGenerationService(MmaContext db)
         return (taille, allonge, poidsReel);
     }
 
-    public async Task GenererOrganisationsLocales(int paysResidenceId, int anneeDepart)
+    public async Task GenererOrganisationsLocales(int paysResidenceId, int anneeDepart, int partieId)
     {
         var pays = await db.Pays.FindAsync(paysResidenceId);
         var n = pays?.Nom ?? "Local";
@@ -226,7 +226,8 @@ public class ProspectGenerationService(MmaContext db)
                 AnneeCreation = anneeDepart - 5,
                 Prestige      = 1,
                 Description   = "Combats clandestins organisés dans des entrepôts et garages. Peu de règles, beaucoup d'ambiance.",
-                EstFictive    = true
+                EstFictive    = true,
+                PartieID      = partieId
             },
             new CombatOrganisation
             {
@@ -235,7 +236,8 @@ public class ProspectGenerationService(MmaContext db)
                 AnneeCreation = anneeDepart - 3,
                 Prestige      = 1,
                 Description   = "Petite organisation locale qui fait tourner des cartes régulières dans les salles de quartier.",
-                EstFictive    = true
+                EstFictive    = true,
+                PartieID      = partieId
             },
             new CombatOrganisation
             {
@@ -244,7 +246,8 @@ public class ProspectGenerationService(MmaContext db)
                 AnneeCreation = anneeDepart - 1,
                 Prestige      = 2,
                 Description   = "Organisation régionale en pleine croissance, attire les meilleurs combattants du pays.",
-                EstFictive    = true
+                EstFictive    = true,
+                PartieID      = partieId
             }
         );
         await db.SaveChangesAsync();

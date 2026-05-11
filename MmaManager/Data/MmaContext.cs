@@ -101,6 +101,14 @@ public class MmaContext(DbContextOptions<MmaContext> options) : DbContext(option
             .OnDelete(DeleteBehavior.SetNull)
             .IsRequired(false);
 
+        // CombatOrganisation -> Partie (orgs locales)
+        modelBuilder.Entity<CombatOrganisation>()
+            .HasOne(o => o.Partie)
+            .WithMany()
+            .HasForeignKey(o => o.PartieID)
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired(false);
+
         // CombatPlanifie -> Combattant (le combattant de l'écurie)
         modelBuilder.Entity<CombatPlanifie>()
             .HasOne(cp => cp.Combattant)

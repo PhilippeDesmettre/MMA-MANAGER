@@ -71,7 +71,8 @@ public class RankingsController(MmaContext db, RankingService rankingService) : 
         if (partie is null) return NotFound();
 
         var orgs = await db.CombatOrganisations
-            .Where(o => o.AnneeCreation <= partie.AnneeActuelle && o.Prestige <= partie.PrestigeEcurie + 1)
+            .Where(o => o.AnneeCreation <= partie.AnneeActuelle
+                     && (o.PartieID == null || o.PartieID == partie.PartieID))
             .OrderByDescending(o => o.Prestige)
             .Select(o => new { o.OrganisationID, o.Nom, o.Prestige })
             .ToListAsync();

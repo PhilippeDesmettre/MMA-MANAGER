@@ -27,6 +27,10 @@ public class CombatOrganisation
     /// <summary>True = organisation fictive créée pour le jeu</summary>
     public bool EstFictive { get; set; } = false;
 
+    /// <summary>Non-null = organisation locale liée à une partie spécifique</summary>
+    public int? PartieID { get; set; }
+
     // Navigation
-    public Pays? PaysOrigine { get; set; }
+    public Pays?   PaysOrigine { get; set; }
+    public Partie? Partie      { get; set; }
 }

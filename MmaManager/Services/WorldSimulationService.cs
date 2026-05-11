@@ -18,7 +18,10 @@ public class WorldSimulationService(MmaContext db, RankingService rankingService
             .Select(cp => cp.CombattantID)
             .ToListAsync()).ToHashSet();
 
-        var organisations = await db.CombatOrganisations.ToListAsync();
+        var organisations = await db.CombatOrganisations
+            .Where(o => o.AnneeCreation <= annee
+                     && (o.PartieID == null || o.PartieID == partieId))
+            .ToListAsync();
         if (organisations.Count == 0) return nouvelles;
 
         int nbCombats = Math.Min(8, 3 + organisations.Count / 3);

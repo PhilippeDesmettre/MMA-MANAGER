@@ -58,7 +58,7 @@ public class PartieController(MmaContext db, ProspectGenerationService prospectS
         {
             "GoldenAge" => 2000,
             "Modern"    => 2013,
-            _           => 1985
+            _           => 1993
         };
 
         var partie = new Partie
@@ -117,7 +117,7 @@ public class PartieController(MmaContext db, ProspectGenerationService prospectS
         await db.SaveChangesAsync();
 
         await prospectService.GenererProspects(req.PaysResidenceID, anneeDepart);
-        await prospectService.GenererOrganisationsLocales(req.PaysResidenceID, anneeDepart);
+        await prospectService.GenererOrganisationsLocales(req.PaysResidenceID, anneeDepart, partie.PartieID);
         await rosterService.ChargerRoster(partie.PartieID, anneeDepart);
 
         // Recharger avec navigations

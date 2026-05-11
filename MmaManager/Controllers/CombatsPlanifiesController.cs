@@ -55,9 +55,17 @@ public class CombatsPlanifiesController(MmaContext db) : ControllerBase
         var partie = await PartieActive();
         if (partie is null) return NotFound();
 
+        var entraineur = await db.EntraineursJoueur
+            .FirstOrDefaultAsync(e => e.PartieID == partie.PartieID);
+        var paysResidenceId = entraineur?.PaysResidenceID;
+
         var orgs = await db.CombatOrganisations
             .Where(o => o.AnneeCreation <= partie.AnneeActuelle
-                     && o.Prestige <= partie.PrestigeEcurie + 1)
+                     && o.Prestige <= partie.PrestigeEcurie + 1
+                     && (o.PartieID == null || o.PartieID == partie.PartieID)
+                     && (o.Prestige >= 3
+                         || o.PaysOrigineID == null
+                         || o.PaysOrigineID == paysResidenceId))
             .OrderByDescending(o => o.Prestige)
             .ThenBy(o => o.Nom)
             .AsNoTracking()
@@ -173,10 +181,28 @@ public class CombatsPlanifiesController(MmaContext db) : ControllerBase
         var adversaire = await db.Combattants.FindAsync(req.AdversaireID);
         if (adversaire is null) return BadRequest("Adversaire introuvable.");
 
-        // Vérifier que l'organisation est disponible cette année
+        // Vérifier que l'organisation est disponible et accessible
         var org = await db.CombatOrganisations.FindAsync(req.OrganisationID);
-        if (org is null || org.AnneeCreation > partie.AnneeActuelle)
-            return BadRequest("Organisation non disponible.");
+        if (org is null) return BadRequest("Organisation non disponible.");
+
+        if (org.PartieID is not null && org.PartieID != partie.PartieID)
+            return BadRequest("Cette organisation n'est pas accessible.");
+
+        if (org.AnneeCreation > partie.AnneeActuelle)
+            return BadRequest("Cette organisation n'existe pas encore.");
+
+        if (org.Prestige > partie.PrestigeEcurie + 1)
+            return BadRequest("Votre écurie n'a pas assez de prestige pour cette organisation.");
+
+        if (org.Prestige <= 2)
+        {
+            var entraineur = await db.EntraineursJoueur
+                .FirstOrDefaultAsync(e => e.PartieID == partie.PartieID);
+
+            if (entraineur is not null && org.PaysOrigineID is not null
+                && org.PaysOrigineID != entraineur.PaysResidenceID)
+                return BadRequest("Votre écurie n'a pas encore la visibilité internationale pour cette organisation.");
+        }
 
         // Un combattant ne peut avoir qu'un combat planifié à la fois
         var combatExistant = await db.CombatsPlanifies

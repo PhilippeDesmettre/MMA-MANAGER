@@ -44,6 +44,18 @@ public class RosterHistoriqueService(MmaContext db)
         var organisations = await db.CombatOrganisations.ToListAsync();
         var pays = await db.Pays.ToDictionaryAsync(p => p.Code, p => p.PaysID);
 
+        var orgAliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "UFC",        "Ultimate Fighting Championship" },
+            { "PRIDE",      "PRIDE Fighting Championships"  },
+            { "WEC",        "World Extreme Cagefighting"    },
+            { "Strikeforce","Strikeforce"                   },
+            { "Bellator",   "Bellator MMA"                  },
+            { "ONE",        "ONE Championship"              },
+            { "PFL",        "Professional Fighters League"  },
+            { "K-1",        "K-1 MMA / Hero's"             }
+        };
+
         var rng = new Random();
 
         foreach (var f in roster.Fighters)
@@ -137,8 +149,12 @@ public class RosterHistoriqueService(MmaContext db)
 
             if (snapshot.Classement is not null)
             {
+                string orgName = snapshot.Classement.Organisation;
+                if (orgAliases.TryGetValue(orgName, out var resolvedName))
+                    orgName = resolvedName;
+
                 var org = organisations.FirstOrDefault(o =>
-                    o.Nom.Equals(snapshot.Classement.Organisation, StringComparison.OrdinalIgnoreCase));
+                    o.Nom.Equals(orgName, StringComparison.OrdinalIgnoreCase));
 
                 if (org is not null)
                 {

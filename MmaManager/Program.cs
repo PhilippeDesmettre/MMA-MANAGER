@@ -179,6 +179,33 @@ using (var scope = app.Services.CreateScope())
         );
     """);
 
+    // Colonne PartieID dans CombatOrganisation (orgs locales liées à une partie) — CASCADE
+    db.Database.ExecuteSqlRaw("""
+        IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('CombatOrganisation') AND name = 'PartieID')
+            ALTER TABLE CombatOrganisation ADD PartieID INT NULL REFERENCES Partie(PartieID) ON DELETE CASCADE;
+    """);
+
+    // Recréer la FK avec CASCADE si elle existe déjà avec SET NULL
+    db.Database.ExecuteSqlRaw("""
+        IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('CombatOrganisation') AND name = 'PartieID')
+        BEGIN
+            DECLARE @fkName NVARCHAR(200);
+            SELECT @fkName = fk.name
+            FROM sys.foreign_keys fk
+            JOIN sys.foreign_key_columns fkc ON fk.object_id = fkc.constraint_object_id
+            WHERE fk.parent_object_id = OBJECT_ID('CombatOrganisation')
+              AND COL_NAME(fk.parent_object_id, fkc.parent_column_id) = 'PartieID'
+              AND fk.delete_referential_action = 2; -- 2 = SET NULL
+
+            IF @fkName IS NOT NULL
+            BEGIN
+                EXEC('ALTER TABLE CombatOrganisation DROP CONSTRAINT ' + @fkName);
+                ALTER TABLE CombatOrganisation ADD CONSTRAINT FK_CombatOrganisation_Partie
+                    FOREIGN KEY (PartieID) REFERENCES Partie(PartieID) ON DELETE CASCADE;
+            END
+        END
+    """);
+
     // Table SurEntrainement
     db.Database.ExecuteSqlRaw("""
         IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'SurEntrainement' AND type = 'U')
