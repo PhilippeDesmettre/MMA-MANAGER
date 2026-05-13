@@ -25,6 +25,11 @@ const dialogMode    = ref('view')
 const snackbar      = ref(false)
 const snackbarMsg   = ref('')
 
+const agentDialog       = ref(false)
+const agentsDisponibles = ref([])
+const agentLoading      = ref(false)
+const agentSaving       = ref(false)
+
 const filterCat    = ref('Toutes')
 
 const CATEGORIES = computed(() => {
@@ -144,6 +149,43 @@ function fighterImg(genre) { return genre === 'F' ? fighterDefaultF : fighterDef
 
 function phaseIcon(phase) {
   return { 'Développement': '📈', 'Pic': '⭐', 'Déclin': '📉', 'Vétéran': '🏛️' }[phase] ?? '❓'
+}
+
+async function ouvrirChoixAgent() {
+  agentDialog.value = true
+  if (agentsDisponibles.value.length === 0) {
+    agentLoading.value = true
+    try {
+      const res = await fetch(`${API}/combattants/agents-disponibles`, { headers: props.authHeaders() })
+      if (res.ok) agentsDisponibles.value = await res.json()
+    } finally {
+      agentLoading.value = false
+    }
+  }
+}
+
+async function confirmerAgent(agentId) {
+  if (!dialogFighter.value) return
+  agentSaving.value = true
+  try {
+    const res = await fetch(`${API}/combattants/${dialogFighter.value.combattantID}/assigner-agent`, {
+      method: 'POST',
+      headers: { ...props.authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agentID: agentId })
+    })
+    if (res.ok) {
+      dialogFighter.value.agentAttitre = agentId
+        ? (agentsDisponibles.value.find(a => a.agentID === agentId) ?? null)
+        : null
+      agentDialog.value = false
+      await loadEcurie()
+    } else {
+      snackbarMsg.value = await res.text() || "Erreur lors de l'assignation de l'agent."
+      snackbar.value = true
+    }
+  } finally {
+    agentSaving.value = false
+  }
 }
 
 onMounted(() => { loadEcurie(); loadDisponibles() })
@@ -395,6 +437,42 @@ onMounted(() => { loadEcurie(); loadDisponibles() })
           </div>
         </div>
 
+        <!-- Agent attitré (ecurie seulement) -->
+        <div v-if="dialogMode === 'view'" class="agent-section">
+          <span class="section-title">🤝 Agent</span>
+          <div v-if="dialogFighter.agentAttitre" class="agent-card">
+            <div class="agent-header">
+              <div>
+                <div class="agent-name">{{ dialogFighter.agentAttitre.prenom }} {{ dialogFighter.agentAttitre.nom }}</div>
+                <div class="agent-fighters">{{ dialogFighter.agentAttitre.nbCombattantsActuels }} / {{ dialogFighter.agentAttitre.maxCombattants }} fighters</div>
+              </div>
+              <span class="agent-sal">{{ formatPrix(dialogFighter.agentAttitre.salaireMensuel) }}/mois</span>
+            </div>
+            <div class="agent-comp-row">
+              <span class="agent-comp"><span class="agent-comp-label">Négo</span> {{ dialogFighter.agentAttitre.compNegociation }}</span>
+              <span class="agent-comp"><span class="agent-comp-label">Réseau</span> {{ dialogFighter.agentAttitre.compReseau }}</span>
+              <span class="agent-comp"><span class="agent-comp-label">Marketing</span> {{ dialogFighter.agentAttitre.compMarketing }}</span>
+            </div>
+            <div class="agent-actions">
+              <v-btn size="x-small" variant="outlined" rounded="pill" @click="ouvrirChoixAgent"
+                style="border-color:rgba(99,102,241,.4);color:#a5b4fc;font-size:.75rem">
+                Changer d'agent
+              </v-btn>
+              <v-btn size="x-small" variant="text" rounded="pill" :loading="agentSaving" @click="confirmerAgent(null)"
+                style="color:#64748b;font-size:.75rem">
+                Retirer
+              </v-btn>
+            </div>
+          </div>
+          <div v-else class="agent-empty">
+            <span style="color:#64748b;font-size:.8rem">Aucun agent — gestion directe par l'entraîneur</span>
+            <v-btn size="x-small" variant="outlined" rounded="pill" @click="ouvrirChoixAgent"
+              style="border-color:rgba(99,102,241,.4);color:#a5b4fc;font-size:.75rem">
+              Assigner un agent
+            </v-btn>
+          </div>
+        </div>
+
         <div v-if="dialogFighter.rivalites?.length > 0" class="rivalites-section">
           <span class="section-title">🔥 Rivalités</span>
           <div v-for="r in dialogFighter.rivalites" :key="r.rivaliteID" class="rivalite-card">
@@ -522,6 +600,37 @@ onMounted(() => { loadEcurie(); loadDisponibles() })
           @click="recruter(dialogFighter.combattantID)">
           👊 Recruter — {{ formatPrix(dialogFighter.prixAchat) }}
         </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
+  <!-- ── Dialog sélection d'agent ─────────────────────────────── -->
+  <v-dialog v-model="agentDialog" max-width="460">
+    <v-card class="agent-select-dialog" rounded="xl" elevation="16">
+      <v-card-title class="pa-4" style="font-size:.95rem;color:#e2e8f0">Choisir un agent</v-card-title>
+      <v-card-text class="pa-0">
+        <div v-if="agentLoading" class="text-center pa-8">
+          <v-progress-circular indeterminate color="indigo" size="32" />
+        </div>
+        <div v-else class="agent-list">
+          <div v-for="a in agentsDisponibles" :key="a.agentID" class="agent-list-row"
+            :class="{ 'agent-full': a.nbCombattantsActuels >= a.maxCombattants }"
+            @click="a.nbCombattantsActuels < a.maxCombattants && confirmerAgent(a.agentID)">
+            <div class="agent-list-info">
+              <span class="agent-name">{{ a.prenom }} {{ a.nom }}</span>
+              <span class="agent-list-slots">{{ a.nbCombattantsActuels }}/{{ a.maxCombattants }} fighters</span>
+            </div>
+            <div class="agent-list-stats">
+              <span class="agent-comp"><span class="agent-comp-label">Négo</span> {{ a.compNegociation }}</span>
+              <span class="agent-comp"><span class="agent-comp-label">Réseau</span> {{ a.compReseau }}</span>
+            </div>
+            <span class="agent-list-sal">{{ formatPrix(a.salaireMensuel) }}/mois</span>
+            <span v-if="a.nbCombattantsActuels >= a.maxCombattants" class="agent-full-tag">Complet</span>
+          </div>
+        </div>
+      </v-card-text>
+      <v-card-actions class="pa-4">
+        <v-btn variant="text" rounded="pill" @click="agentDialog = false">Annuler</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -851,4 +960,59 @@ onMounted(() => { loadEcurie(); loadDisponibles() })
   margin-left: 0;
   white-space: nowrap;
 }
+
+/* ── Agent section ───────────────────────────────────────── */
+.agent-section { margin-top: 16px; }
+
+.agent-card {
+  background: rgba(99,102,241,.06);
+  border: 1px solid rgba(99,102,241,.2);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.agent-header { display: flex; justify-content: space-between; align-items: flex-start; }
+.agent-name { font-weight: 700; font-size: .88rem; color: #e2e8f0; }
+.agent-fighters { font-size: .72rem; color: #64748b; margin-top: 2px; }
+.agent-sal { font-size: .78rem; font-weight: 700; color: #a5b4fc; white-space: nowrap; }
+
+.agent-comp-row { display: flex; gap: 12px; margin-top: 8px; }
+.agent-comp { font-size: .78rem; color: #a5b4fc; display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.agent-comp-label { font-size: .65rem; color: #64748b; text-transform: uppercase; letter-spacing: .05em; }
+
+.agent-actions { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
+
+.agent-empty {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 14px;
+  background: rgba(255,255,255,.02);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 10px;
+}
+
+/* ── Agent select dialog ─────────────────────────────────── */
+.agent-select-dialog {
+  background: linear-gradient(160deg, #1a0810 0%, #1e293b 100%);
+  border: 1px solid rgba(99,102,241,.25);
+}
+
+.agent-list { display: flex; flex-direction: column; }
+
+.agent-list-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  align-items: center;
+  gap: 12px; padding: 12px 16px;
+  border-bottom: 1px solid rgba(255,255,255,.05);
+  cursor: pointer; transition: background .15s;
+}
+
+.agent-list-row:hover:not(.agent-full) { background: rgba(99,102,241,.08); }
+.agent-list-row.agent-full { opacity: .5; cursor: not-allowed; }
+
+.agent-list-info { display: flex; flex-direction: column; gap: 3px; }
+.agent-list-slots { font-size: .7rem; color: #64748b; }
+.agent-list-stats { display: flex; gap: 8px; }
+.agent-list-sal { font-size: .78rem; font-weight: 700; color: #a5b4fc; white-space: nowrap; }
+.agent-full-tag { font-size: .65rem; color: #ef4444; background: rgba(239,68,68,.1); padding: 2px 7px; border-radius: 6px; }
 </style>

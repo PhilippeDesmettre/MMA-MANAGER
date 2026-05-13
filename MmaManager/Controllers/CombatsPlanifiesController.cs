@@ -283,16 +283,18 @@ public class CombatsPlanifiesController(MmaContext db) : ControllerBase
             });
         }
 
-        // Récupérer l'agent joueur
-        var agent = await db.Agents
-            .FirstOrDefaultAsync(a => a.PartieID == partie.PartieID && a.EstJoueur);
+        // Utiliser l'agent du combattant, sinon l'agent joueur par défaut
+        var cpFighter = await db.CombattantsPartie
+            .FirstOrDefaultAsync(cp => cp.PartieID == partie.PartieID && cp.CombattantID == req.CombattantID);
+        int? agentId = cpFighter?.AgentID
+            ?? (await db.Agents.FirstOrDefaultAsync(a => a.PartieID == partie.PartieID && a.EstJoueur))?.AgentID;
 
         db.CombatsPlanifies.Add(new CombatPlanifie
         {
             PartieID      = partie.PartieID,
             CombattantID  = req.CombattantID,
             AdversaireID  = req.AdversaireID,
-            AgentID       = agent?.AgentID,
+            AgentID       = agentId,
             OrganisationID = req.OrganisationID,
             TourPrevu     = req.TourPrevu,
             Statut        = "Planifie"

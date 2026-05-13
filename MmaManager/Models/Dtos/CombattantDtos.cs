@@ -106,5 +106,7 @@ public record CombattantDetailDto(
     int?    RangMondial,
     string? MeilleurRangOrga,
     // Contrats
-    IReadOnlyList<ContratActifDto> Contrats
+    IReadOnlyList<ContratActifDto> Contrats,
+    // Agent
+    AgentDto? AgentAttitre
 );

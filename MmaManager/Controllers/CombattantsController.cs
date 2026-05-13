@@ -125,6 +125,19 @@ public class CombattantsController(MmaContext db) : ControllerBase
             .AsNoTracking()
             .ToListAsync();
 
+        var cpAgents = await db.CombattantsPartie
+            .Where(cp => cp.PartieID == partie.PartieID && cp.AgentID != null)
+            .Include(cp => cp.Agent)
+            .AsNoTracking()
+            .ToListAsync();
+
+        var agentFighterCounts = cpAgents
+            .GroupBy(cp => cp.AgentID!.Value)
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        var agentLookup = cpAgents
+            .ToDictionary(cp => cp.CombattantID, cp => cp.Agent!);
+
         var rankingLookup = new Dictionary<int, (string? meilleurRang, int? rangMondial)>();
         foreach (var c in combattants)
         {
@@ -166,8 +179,17 @@ public class CombattantsController(MmaContext db) : ControllerBase
                     co.EstExclusif,
                     co.Statut))
                 .ToList();
+            AgentDto? agentDto = null;
+            if (agentLookup.TryGetValue(c.CombattantID, out var agent))
+            {
+                int nb = agentFighterCounts.GetValueOrDefault(agent.AgentID);
+                agentDto = new AgentDto(agent.AgentID, agent.Prenom, agent.Nom, agent.EstJoueur,
+                    agent.CompContact, agent.CompNegociation, agent.CompReseau,
+                    agent.CompReputation, agent.CompInfluence, agent.CompMarketing,
+                    agent.CompJuridique, agent.SalaireMensuel, agent.MaxCombattants, nb);
+            }
             return ToDetailDto(c, references, partie.AnneeActuelle, partie.MoisActuel,
-                rivalites, meilleurRang, rangMondial, contratsDto);
+                rivalites, meilleurRang, rangMondial, contratsDto, agentDto);
         }));
     }
 
@@ -254,10 +276,84 @@ public class CombattantsController(MmaContext db) : ControllerBase
             }
         }
 
+        AgentDto? agentDto = null;
+        if (partie is not null)
+        {
+            var cpAgent = await db.CombattantsPartie
+                .Where(cp => cp.PartieID == partie.PartieID && cp.CombattantID == id && cp.AgentID != null)
+                .Include(cp => cp.Agent)
+                .AsNoTracking()
+                .FirstOrDefaultAsync();
+            if (cpAgent?.Agent is not null)
+            {
+                int nb = await db.CombattantsPartie
+                    .CountAsync(x => x.PartieID == partie.PartieID && x.AgentID == cpAgent.AgentID);
+                var a = cpAgent.Agent;
+                agentDto = new AgentDto(a.AgentID, a.Prenom, a.Nom, a.EstJoueur,
+                    a.CompContact, a.CompNegociation, a.CompReseau,
+                    a.CompReputation, a.CompInfluence, a.CompMarketing,
+                    a.CompJuridique, a.SalaireMensuel, a.MaxCombattants, nb);
+            }
+        }
+
         return Ok(ToDetailDto(combattant!, references,
             partie?.AnneeActuelle ?? DateTime.Today.Year,
             partie?.MoisActuel ?? DateTime.Today.Month,
-            rivalites, meilleurRangOrga, rangMondial, contratsDto));
+            rivalites, meilleurRangOrga, rangMondial, contratsDto, agentDto));
+    }
+
+    [HttpGet("agents-disponibles")]
+    public async Task<ActionResult> GetAgentsDisponibles()
+    {
+        var partie = await PartieActive();
+        if (partie is null) return NotFound();
+
+        var agents = await db.Agents
+            .Where(a => a.PartieID == null || a.PartieID == partie.PartieID)
+            .ToListAsync();
+
+        var result = new List<AgentDto>();
+        foreach (var a in agents)
+        {
+            int nb = await db.CombattantsPartie
+                .CountAsync(cp => cp.PartieID == partie.PartieID && cp.AgentID == a.AgentID);
+            result.Add(new AgentDto(a.AgentID, a.Prenom, a.Nom, a.EstJoueur,
+                a.CompContact, a.CompNegociation, a.CompReseau,
+                a.CompReputation, a.CompInfluence, a.CompMarketing,
+                a.CompJuridique, a.SalaireMensuel, a.MaxCombattants, nb));
+        }
+
+        return Ok(result.OrderByDescending(a => a.EstJoueur).ThenByDescending(a => a.CompNegociation));
+    }
+
+    [HttpPost("{id:int}/assigner-agent")]
+    public async Task<ActionResult> AssignerAgent(int id, [FromBody] AssignerAgentRequest req)
+    {
+        var partie = await PartieActive();
+        if (partie is null) return NotFound();
+
+        var cp = await db.CombattantsPartie
+            .FirstOrDefaultAsync(cp => cp.PartieID == partie.PartieID && cp.CombattantID == id);
+        if (cp is null) return NotFound("Ce combattant n'est pas dans votre écurie.");
+
+        if (req.AgentID is null)
+        {
+            cp.AgentID = null;
+            await db.SaveChangesAsync();
+            return Ok(new { message = "Agent retiré. Vous gérez ce combattant directement." });
+        }
+
+        var agent = await db.Agents.FindAsync(req.AgentID);
+        if (agent is null) return NotFound("Agent introuvable.");
+
+        int nbActuels = await db.CombattantsPartie
+            .CountAsync(x => x.PartieID == partie.PartieID && x.AgentID == req.AgentID);
+        if (nbActuels >= agent.MaxCombattants)
+            return BadRequest($"{agent.Prenom} {agent.Nom} gère déjà {nbActuels} combattants (max {agent.MaxCombattants}).");
+
+        cp.AgentID = req.AgentID;
+        await db.SaveChangesAsync();
+        return Ok(new { message = $"{agent.Prenom} {agent.Nom} est maintenant l'agent de ce combattant." });
     }
 
     [HttpPost("{id:int}/recruter")]
@@ -382,7 +478,8 @@ public class CombattantsController(MmaContext db) : ControllerBase
         IReadOnlyList<Rivalite> rivalites,
         string? meilleurRangOrga = null,
         int? rangMondial = null,
-        IReadOnlyList<ContratActifDto>? contrats = null)
+        IReadOnlyList<ContratActifDto>? contrats = null,
+        AgentDto? agentAttitre = null)
     {
         var pays = GetPays(c, references);
         int age  = CalculerAge(c.DateNaissance, anneeJeu, moisJeu);
@@ -471,7 +568,8 @@ public class CombattantsController(MmaContext db) : ControllerBase
             rivalitesDto,
             rangMondial,
             meilleurRangOrga,
-            contrats ?? []
+            contrats ?? [],
+            agentAttitre
         );
     }
 }

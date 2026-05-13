@@ -39,4 +39,10 @@ public class Agent
 
     /// <summary>Compréhension des contrats, clauses, légalité</summary>
     public int CompJuridique   { get; set; } = 30;
+
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal SalaireMensuel { get; set; } = 0;
+
+    [NotMapped]
+    public int MaxCombattants => 2 + CompReseau / 20;
 }

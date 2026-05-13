@@ -14,7 +14,11 @@ public class CombattantPartie
 
     public DateTime DateRecrutement { get; set; } = DateTime.UtcNow;
 
+    /// <summary>Agent attitré. Null = le joueur gère directement.</summary>
+    public int? AgentID { get; set; }
+
     // Navigation
     public Combattant? Combattant { get; set; }
     public Partie?     Partie     { get; set; }
+    public Agent?      Agent      { get; set; }
 }

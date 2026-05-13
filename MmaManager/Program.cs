@@ -165,6 +165,11 @@ using (var scope = app.Services.CreateScope())
         );
     """);
 
+    db.Database.ExecuteSqlRaw("""
+        IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Agent') AND name = 'SalaireMensuel')
+            ALTER TABLE Agent ADD SalaireMensuel DECIMAL(18,2) NOT NULL DEFAULT 0;
+    """);
+
     // Table CombatOrganisation
     db.Database.ExecuteSqlRaw("""
         IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'CombatOrganisation' AND type = 'U')
@@ -554,6 +559,27 @@ using (var scope = app.Services.CreateScope())
             DateRecrutement    DATETIME NOT NULL DEFAULT GETDATE(),
             UNIQUE (CombattantID, PartieID)
         );
+    """);
+
+    db.Database.ExecuteSqlRaw("""
+        IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('CombattantPartie') AND name = 'AgentID')
+            ALTER TABLE CombattantPartie ADD AgentID INT NULL REFERENCES Agent(AgentID) ON DELETE SET NULL;
+    """);
+
+    db.Database.ExecuteSqlRaw("""
+        IF NOT EXISTS (SELECT 1 FROM Agent WHERE EstJoueur = 0 AND PartieID IS NULL)
+        INSERT INTO Agent (PartieID, EstJoueur, Prenom, Nom, CompContact, CompNegociation, CompReseau, CompReputation, CompInfluence, CompMarketing, CompJuridique, SalaireMensuel)
+        VALUES
+        (NULL, 0, N'Marco',   N'Delgado',   35, 40, 30, 25, 20, 30, 35,  750),
+        (NULL, 0, N'Yuki',    N'Tanaka',    45, 55, 40, 35, 30, 40, 45, 1500),
+        (NULL, 0, N'James',   N'Mitchell',  55, 65, 50, 50, 45, 55, 55, 2500),
+        (NULL, 0, N'Sergei',  N'Volkov',    40, 50, 55, 40, 35, 30, 40, 1200),
+        (NULL, 0, N'Roberto', N'Mendes',    60, 70, 55, 60, 55, 65, 60, 4000),
+        (NULL, 0, N'Ali',     N'Hassan',    50, 60, 60, 55, 50, 45, 50, 2000),
+        (NULL, 0, N'David',   N'Stone',     70, 80, 65, 70, 65, 75, 70, 5500),
+        (NULL, 0, N'Kenji',   N'Yamamoto',  65, 75, 70, 65, 60, 60, 65, 4500),
+        (NULL, 0, N'Carlos',  N'Ferreira',  45, 45, 35, 30, 25, 35, 40,  900),
+        (NULL, 0, N'Viktor',  N'Petrov',    55, 60, 45, 45, 40, 50, 55, 2200);
     """);
 
     // Seed des backgrounds (si la table est vide)

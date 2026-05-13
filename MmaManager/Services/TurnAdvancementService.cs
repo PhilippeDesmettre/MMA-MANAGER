@@ -55,6 +55,17 @@ public class TurnAdvancementService(
         var combatsResultats  = new List<CombatSimuleDto>();
         var contratsTermines  = new List<ContratTermineDto>();
 
+        // Précharger les agents pour le bonus bourse
+        var agentIdsCombats = combatsDuTour
+            .Where(c => c.AgentID.HasValue)
+            .Select(c => c.AgentID!.Value)
+            .Distinct()
+            .ToList();
+        var agentsCombatsDict = agentIdsCombats.Count > 0
+            ? (await db.Agents.Where(a => agentIdsCombats.Contains(a.AgentID)).AsNoTracking().ToListAsync())
+              .ToDictionary(a => a.AgentID)
+            : new Dictionary<int, Agent>();
+
         foreach (var combat in combatsDuTour)
         {
             var notre   = combat.Combattant!;
@@ -227,6 +238,10 @@ public class TurnAdvancementService(
             else
                 bourse = rng.Next(bourseDMin, bourseDMax + 1);
 
+            // Bonus de négociation de l'agent
+            if (combat.AgentID.HasValue && agentsCombatsDict.TryGetValue(combat.AgentID.Value, out var combatAgent))
+                bourse = Math.Round(bourse * (1.0m + combatAgent.CompNegociation * 0.005m), 2);
+
             partie.Argent += bourse;
 
             combatsResultats.Add(new CombatSimuleDto(
@@ -378,7 +393,18 @@ public class TurnAdvancementService(
         int salairesTotaux = ecurieCombattants.Sum(cp => cp.Combattant!.Salaire);
         decimal loyer      = 1m;
         decimal staffSal   = staffEmbauches.Sum(sp => sp.StaffDisponible!.SalaireMensuel);
-        decimal depenses   = salairesTotaux + loyer + staffSal;
+
+        // Salaires des agents NPC assignés aux fighters de l'écurie
+        var agentIdsEcurie = ecurieCombattants
+            .Where(cp => cp.AgentID.HasValue)
+            .Select(cp => cp.AgentID!.Value)
+            .Distinct()
+            .ToList();
+        decimal agentsSal = agentIdsEcurie.Count > 0
+            ? await db.Agents.Where(a => agentIdsEcurie.Contains(a.AgentID)).SumAsync(a => a.SalaireMensuel)
+            : 0m;
+
+        decimal depenses   = salairesTotaux + loyer + staffSal + agentsSal;
 
         decimal soldeAvant = partie.Argent;
         partie.Argent     -= depenses;
